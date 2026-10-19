@@ -2,9 +2,9 @@
   "product": "forum",
   "platform": "darwin",
   "arch": "arm64",
-  "version": "0.1.2",
-  "url": "https://d2bnmgwuxhgpmh.cloudfront.net/forum/preview/0.1.2/Forum-darwin-arm64-0.1.2.zip",
-  "sizeBytes": 111518564,
-  "checksum": "sha256:772392b20c41e287c62b49bbccecf3d07553ce29111cf3337b848e5fd7535c57",
+  "version": "0.1.3",
+  "url": "https://d2bnmgwuxhgpmh.cloudfront.net/forum/preview/0.1.3/Forum-darwin-arm64-0.1.3.zip",
+  "sizeBytes": 111520088,
+  "checksum": "sha256:bc6edf5ae11958170b6f950cf792da26f97a68b7a2f20ace79b559455abf581d",
   "notarized": true
 }
