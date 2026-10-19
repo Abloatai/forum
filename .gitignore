@@ -1,0 +1,14 @@
+node_modules/
+dist/
+out/
+*.sqlite*
+*.webm
+*.mp4
+.env*
+.lobby/tools/
+auth-session.bin*
+.terraform/
+*.tfstate*
+*.tfvars
+*.tfvars.json
+crash.log
