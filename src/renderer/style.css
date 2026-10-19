@@ -53,7 +53,7 @@ input { width: 100%; min-width: 0; background: transparent; border: 0; border-ra
 #messages { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
 .message { margin: 0 0 24px; padding: 0 8px; font-size: 13px; line-height: 20px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .message small { display: block; color: var(--muted-foreground); font-size: 11px; margin-bottom: 6px; }
-.message.user { position: relative; margin-left: 28px; background: var(--muted); border-radius: 12px; padding: 8px 28px 8px 12px; }
+.message.user { position: relative; margin-left: 28px; background: var(--muted); border-radius: 12px; padding: 8px 28px 8px 12px; font-size: 12px; line-height: 18px; }
 .message-avatar { position: absolute; right: -4px; bottom: -8px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 2px var(--background); color: var(--muted-foreground); font-size: 10px; font-weight: 500; line-height: 1; }
 .tool-activity { margin: 0 8px 16px; color: var(--muted-foreground); font-size: 11px; line-height: 18px; }
 .tool-activity summary { cursor: pointer; padding: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
