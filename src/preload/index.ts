@@ -4,6 +4,8 @@ import type {Draft, Request} from '../document/index.js';
 contextBridge.exposeInMainWorld('lobbyDocs', {
   authState:()=>ipcRenderer.invoke('docs:auth-state'),
   signIn:()=>ipcRenderer.invoke('docs:sign-in'),
+  sendEmailCode:(email:string)=>ipcRenderer.invoke('docs:send-email-code',email),
+  verifyEmailCode:(email:string,code:string)=>ipcRenderer.invoke('docs:verify-email-code',email,code),
   signOut:()=>ipcRenderer.invoke('docs:sign-out'),
   list: () => ipcRenderer.invoke('docs:list'),
   create: (title: string) => ipcRenderer.invoke('docs:create', title),

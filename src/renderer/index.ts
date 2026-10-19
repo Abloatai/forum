@@ -6,7 +6,9 @@ import {createTextEditorExtensions,defaultPaper, type Draft, type Request, type 
 import {createPaginationPlugin,paginationPluginKey} from '../document/pagination.js';
 
 declare global {interface Window {lobbyDocs: {
+  browser?:boolean;
   authState():Promise<{local:boolean;signedIn:boolean;name:string;pending:boolean;message:string;code:string}>;signIn():Promise<void>;signOut():Promise<void>;
+  sendEmailCode?(email:string):Promise<void>;verifyEmailCode?(email:string,code:string):Promise<void>;
   list(): Promise<Snapshot[]>; create(title: string): Promise<Snapshot>; open(id: string): Promise<Draft>;
   request(input: Request): Promise<unknown>; saveDraft(draft: Draft): {ok: boolean; error?: string};
   offline(value: boolean): Promise<boolean>; newWindow(): Promise<void>;
@@ -166,16 +168,31 @@ element('document-layout').onchange=()=>{
   const select=element<HTMLSelectElement>('document-layout'),id=draft.id;select.disabled=true;
   void api.request({action:'layout',id,layout:select.value}).then(()=>sync()).catch(e=>{select.value=base?.layout??'page';error(e.message);}).finally(()=>{select.disabled=false;});
 };
+let emailSent=false,emailAddress='',emailBusy=false;
 async function authView(){
   const auth=await api.authState(),required=!auth.local&&!auth.signedIn;
   element('sign-in').hidden=!required;
   document.body.classList.toggle('signed-out',required);
-  element('sign-in-button').textContent=auth.pending?'Cancel':'Continue with Ablo';
+  element('sign-in-title').textContent=emailSent?'Check your inbox':'Welcome to Forum';
+  element('sign-in-button').textContent=auth.pending?'Cancel':api.browser?'Sign in':'Continue with Google';
+  element('sign-in-button').hidden=emailSent;
+  element('email-sign-in').hidden=!!api.browser||auth.pending&&!emailBusy;
+  element('email-form').hidden=emailSent;element('code-form').hidden=!emailSent;
   element('sign-in-status').textContent=[auth.message,auth.code].filter(Boolean).join(' ');
   element('account').hidden=auth.local||required;
   element('account').textContent=auth.name.trim().slice(0,1).toUpperCase();element('account-name').textContent=auth.name;
   return !required;
 }
+element('email-form').onsubmit=event=>{
+  event.preventDefault();if(emailBusy)return;emailBusy=true;const button=element('email-form').querySelector('button')!;button.disabled=true;
+  emailAddress=element<HTMLInputElement>('sign-in-email').value.trim();
+  void api.sendEmailCode?.(emailAddress).then(()=>{emailSent=true;}).catch(()=>{}).finally(()=>{emailBusy=false;button.disabled=false;void authView();element<HTMLInputElement>('sign-in-code').focus();});
+};
+element('code-form').onsubmit=event=>{
+  event.preventDefault();if(emailBusy)return;emailBusy=true;const button=element('code-form').querySelector('button')!;button.disabled=true;
+  void api.verifyEmailCode?.(emailAddress,element<HTMLInputElement>('sign-in-code').value).catch(()=>{}).finally(()=>{emailBusy=false;button.disabled=false;void authView();});
+};
+element('change-email').onclick=()=>{emailSent=false;void authView();};
 element('sign-in-button').onclick=()=>{void api.authState().then(auth=>auth.pending?api.signOut():api.signIn()).then(authView);};
 element('account').onclick=()=>{const menu=element('account-menu');menu.hidden=!menu.hidden;element('account').setAttribute('aria-expanded',String(!menu.hidden));};
 element('sign-out').onclick=()=>{persist();void api.signOut();};

@@ -1,10 +1,10 @@
 # Forum
 
-A standalone Electron document editor built with Lobby’s native bridge, Tiptap and Ablo. The Mac app signs in through hosted Ablo. People in the same Ablo workspace share documents and chat; local SQLite keeps pending edits safe. The application can also run locally with your own Ablo project.
+A multiplayer document editor for the browser and Mac, built with Tiptap and hosted Ablo. People in the same Ablo workspace share documents and chat. Local drafts keep pending edits safe. The application can also run locally with your own Ablo project.
 
 ## Mac app
 
-Get the Apple Silicon preview from [Forum](https://forum.abloatai.com). Open the application and choose **Continue with Ablo**. Approve in your browser and select your workspace. Forum stores the session encrypted with the OS keychain, restores it after restart, and offers **Sign out** in the account menu. Project keys are never bundled or requested by this edition.
+Open [Forum](https://forum.abloatai.com/app/) in your browser to reuse your Ablo session, or download the Apple Silicon preview. The updated native sign-in screen offers **Continue with Google** and **Continue with email**. Google returns through a secure browser-to-app handoff; email uses a six-digit code. This flow requires the Forum frontend and callback scheme to be registered with hosted Ablo Auth. Forum stores native sessions encrypted with the OS keychain and restores them after restart. Project keys are never bundled or requested by this edition.
 
 ## Run from source
 
@@ -41,6 +41,7 @@ npm test
 npm run test:integration
 npm run test:electron
 npm run test:auth
+npm run test:browser
 npm run test:site
 npm run make
 ```

@@ -2,7 +2,7 @@
 const {execFileSync}=require('node:child_process');
 const {rmSync}=require('node:fs');
 module.exports={
-  packagerConfig:{name:'Forum',executableName:'forum',asar:true,icon:'./resources/icon',appBundleId:'com.ablo.forum',appCategoryType:'public.app-category.productivity',ignore:p=>p!==''&&p!=='/package.json'&&!p.startsWith('/dist'),...(process.env.FORUM_SIGN_IDENTITY?{osxSign:{identity:process.env.FORUM_SIGN_IDENTITY,continueOnError:false}}:{})},
+  packagerConfig:{name:'Forum',executableName:'Forum',asar:true,icon:'./resources/icon',appBundleId:'com.ablo.forum',protocols:[{name:'Forum sign-in',schemes:['com.ablo.forum']}],appCategoryType:'public.app-category.productivity',ignore:p=>p.startsWith('/dist/browser')||p.startsWith('/dist/desktop')||(p!==''&&p!=='/package.json'&&!p.startsWith('/dist')),...(process.env.FORUM_SIGN_IDENTITY?{osxSign:{identity:process.env.FORUM_SIGN_IDENTITY,continueOnError:false}}:{})},
   makers:[{name:'@electron-forge/maker-zip',platforms:['darwin']}],
   hooks:{postPackage:async(_config,options)=>{
     if(options.platform!=='darwin'||!process.env.FORUM_NOTARY_PROFILE)return;

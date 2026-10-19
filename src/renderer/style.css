@@ -135,3 +135,14 @@ body[data-layout=flow] #paper { margin: 8px auto 40px; }
 #document-layout { appearance: none; background: transparent; border: 0; border-radius: 4px; color: inherit; padding: 5px 32px 5px 10px; font-size: 12px; cursor: pointer; }
 
 .signed-out .workspace,.signed-out #toggle-sidebar{display:none}#sign-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}#sign-in[hidden]{display:none}#sign-in h1{font-size:48px;letter-spacing:-.045em;font-weight:450;margin:0}#sign-in-button{background:var(--foreground);color:var(--background);padding:12px 20px;border-radius:8px;font-size:14px}#sign-in-status{font-size:13px;color:var(--muted-foreground);min-height:20px}.account{margin-left:auto;position:relative}#account{width:30px;height:30px;border-radius:50%;background:var(--muted);font-size:13px}#account-menu{position:absolute;right:0;top:38px;min-width:180px;background:var(--background);box-shadow:0 4px 24px #0002;border:1px solid var(--border);border-radius:8px;padding:8px;z-index:50}#account-name{display:block;padding:8px;font-size:12px;color:var(--muted-foreground)}#sign-out{width:100%;padding:8px;text-align:left;font-size:13px}
+.sign-in-card { width: min(320px, calc(100vw - 48px)); display: flex; flex-direction: column; gap: 20px; }
+#sign-in h1 { font-size: 20px; font-weight: 500; letter-spacing: -.025em; text-align: center; }
+#sign-in-button { width: 100%; font-size: 13px; }
+#sign-in-status { text-align: center; margin: 0; line-height: 20px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; color: var(--muted-foreground); margin-bottom: 16px; font-size: 11px; }
+.auth-divider::before,.auth-divider::after { content: ''; height: 1px; background: var(--border); flex: 1; }
+#email-sign-in form { display: flex; flex-direction: column; gap: 10px; }
+#email-sign-in input,#email-sign-in button { min-height: 40px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+#email-sign-in p { margin: 0; text-align: center; color: var(--muted-foreground); line-height: 20px; }
+#sign-in-code { text-align: center; letter-spacing: .35em; }
+.auth-primary { background: var(--foreground); color: var(--background); padding: 12px 20px; border-radius: 8px; font-size: 13px; text-decoration: none; text-align: center; }

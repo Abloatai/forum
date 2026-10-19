@@ -4,7 +4,7 @@ import {pathToFileURL} from 'node:url';
 import {createHash,randomBytes, randomUUID} from 'node:crypto';
 import {mkdirSync,chmodSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
-import {deviceLogin,sessionStorage,type Session,workspaceClient,secureOrigin} from '../auth/index.js';
+import {nativeSignIn,sessionStorage,type Session,workspaceClient,secureOrigin} from '../auth/index.js';
 import {startServer} from '../server/index.js';
 import {connectBridge} from '../realtime/index.js';
 import {identifier, schema, type Draft, type Request, type Snapshot} from '../document/index.js';
@@ -20,15 +20,29 @@ let server: Awaited<ReturnType<typeof startServer>> | undefined;
 let drafts: DatabaseSync|undefined;
 const local=!!process.env.ABLO_API_KEY;
 const site=secureOrigin(process.env.FORUM_API_URL??'https://forum.abloatai.com');
-let signedIn:Session|undefined,saved:ReturnType<typeof sessionStorage>|undefined,login:AbortController|undefined,authMessage='',loginCode='',generation=0;
+let signedIn:Session|undefined,saved:ReturnType<typeof sessionStorage>|undefined,login:AbortController|undefined,authMessage='',generation=0;
+const native=nativeSignIn(site,(...args)=>fetch(...args));
 const remote=workspaceClient(site,()=>signedIn?.token,()=>resetIdentity(),fetch,()=>signedIn?.identity.organizationId);
 function resetIdentity(value?:Session){
-  generation++;login?.abort();login=undefined;signedIn=value;loginCode='';
+  generation++;login?.abort();login=undefined;native.cancel();signedIn=value;
   for(const state of windows.values()){state.bridge.close();state.draft=undefined;}
   drafts?.close();drafts=undefined;
   if(value){saved?.save(value);openDrafts(`${site}:${value.identity.organizationId}:${value.identity.userId}`);}else saved?.clear();
   for(const state of windows.values()){state.bridge=workspaceBridge();state.window.webContents.reload();}
 }
+async function acceptSession(token:string,controller:AbortController){
+  if(controller.signal.aborted)return;
+  const verified=await workspaceClient(site,()=>token,()=>{})({action:'session'});
+  if(controller.signal.aborted)return;
+  authMessage='';resetIdentity({token,identity:verified.identity});
+}
+async function googleCallback(url:string){
+  const controller=login;if(!controller)return;
+  try{await acceptSession(await native.completeGoogle(url),controller);}
+  catch{if(login===controller)authMessage='Sign-in did not finish. Cancel and try again.';}
+  windows.values().next().value?.window.focus();
+}
+app.on('open-url',(event,url)=>{event.preventDefault();void googleCallback(url);});
 function workspaceBridge(){
   if(local)return connectBridge(endpoint,token);
   const epoch=generation;let closed=false;
@@ -63,6 +77,8 @@ if (locked) void app.whenReady().then(async () => {
   if(local){
     token=randomBytes(32).toString('hex');server=await startServer({token});endpoint=server.url;openDrafts(server.workspace);
   }else{
+    if(process.defaultApp&&process.argv[1])app.setAsDefaultProtocolClient('com.ablo.forum',process.execPath,[process.argv[1]]);
+    else app.setAsDefaultProtocolClient('com.ablo.forum');
     endpoint=site;
     saved=sessionStorage(directory,site,safeStorage);
     const previous=saved.load();
@@ -72,17 +88,27 @@ if (locked) void app.whenReady().then(async () => {
       catch{signedIn=undefined;authMessage='Sign in to reconnect to your workspace.';}
     }
   }
-  ipcMain.handle('docs:auth-state',event=>{sender(event);return {local,signedIn:!!signedIn,name:signedIn?.identity.name??'',pending:!!login,message:authMessage,code:loginCode};});
+  ipcMain.handle('docs:auth-state',event=>{sender(event);return {local,signedIn:!!signedIn,name:signedIn?.identity.name??'',pending:!!login,message:authMessage,code:''};});
   ipcMain.handle('docs:sign-in',event=>{
     sender(event);if(local||login)return;
-    const controller=new AbortController();login=controller;authMessage='Continue in your browser.';
-    void deviceLogin({url:'https://auth.abloatai.com',site:'https://www.abloatai.com'},(code,url)=>{
-      loginCode=code;void shell.openExternal(url).catch(()=>{authMessage='The browser could not open. Try signing in again.';controller.abort();});
-    },controller.signal).then(async result=>{
-      if(controller.signal.aborted)return;
-      try{const verified=await workspaceClient(site,()=>result.token,()=>{} )({action:'session'});if(controller.signal.aborted)return;authMessage='';resetIdentity({token:result.token,identity:verified.identity});}
-      catch{signedIn=undefined;authMessage='Forum could not connect to your workspace. Try again.';}
-    }).catch(()=>{if(!controller.signal.aborted)authMessage='Sign-in did not finish. Try again.';}).finally(()=>{if(login===controller)login=undefined;});
+    const controller=new AbortController();login=controller;authMessage='Continue with Google in your browser.';
+    const expiry=setTimeout(()=>{if(login===controller){login=undefined;native.cancel();authMessage='Sign-in expired. Try again.';}},300000);expiry.unref();
+    controller.signal.addEventListener('abort',()=>clearTimeout(expiry),{once:true});
+    void shell.openExternal(native.beginGoogle()).catch(()=>{if(login===controller){controller.abort();login=undefined;native.cancel();authMessage='The browser could not open. Try again.';}});
+  });
+  ipcMain.handle('docs:send-email-code',async(event,email:string)=>{
+    sender(event);if(local||login)throw new Error('Sign-in already in progress');
+    const controller=new AbortController();login=controller;authMessage='';
+    try{await native.sendEmailCode(email);if(controller.signal.aborted)throw new Error('Sign-in cancelled');}
+    catch{authMessage='Could not send the code. Check the address and try again.';throw new Error(authMessage);}
+    finally{if(login===controller)login=undefined;}
+  });
+  ipcMain.handle('docs:verify-email-code',async(event,email:string,code:string)=>{
+    sender(event);if(local||login)throw new Error('Sign-in already in progress');
+    const controller=new AbortController();login=controller;authMessage='';
+    try{await acceptSession(await native.verifyEmailCode(email,code),controller);}
+    catch{authMessage='Invalid or expired code. Try again.';throw new Error(authMessage);}
+    finally{if(login===controller)login=undefined;}
   });
   ipcMain.handle('docs:sign-out',event=>{
     sender(event);if(local)return;const previous=signedIn?.token;authMessage='';resetIdentity();
@@ -131,7 +157,11 @@ if (locked) void app.whenReady().then(async () => {
   ipcMain.handle('docs:new-window', event => {sender(event); newWindow();});
   newWindow();
 }).catch(()=>{dialog.showErrorBox('Forum could not start','Please reopen Forum. Your local drafts have been kept.');app.quit();});
-app.on('second-instance', () => {if (endpoint) newWindow();});
+app.on('second-instance', (_event,argv) => {
+  const callback=argv.find(value=>value.startsWith('com.ablo.forum:'));
+  if(callback){void googleCallback(callback);return;}
+  if (endpoint) newWindow();
+});
 app.on('activate', () => {if (endpoint && windows.size === 0) newWindow();});
 app.on('window-all-closed', () => app.quit());
 let quitting = false;

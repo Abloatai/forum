@@ -1,6 +1,6 @@
 {
   "name": "forum",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Multiplayer documents with Ablo and Tiptap",
   "author": "Lobby",
@@ -21,10 +21,12 @@
     "make": "npm run build && electron-forge make",
     "test:integration": "node --env-file-if-exists=.env.local --import tsx --test tests/*.test.ts",
     "test:auth": "npm run build && node --import tsx tests/native-auth.mts",
-    "test:site": "node tests/site.mjs"
+    "test:site": "node tests/site.mjs",
+    "test:browser": "npm run build && node --import tsx tests/browser.mts"
   },
   "devDependencies": {
     "@abloatai/ablo": "0.66.16",
+    "@better-auth/electron": "1.6.23",
     "@electron-forge/cli": "8.0.0-alpha.9",
     "@electron-forge/maker-zip": "8.0.0-alpha.9",
     "@tiptap/core": "3.31.3",
@@ -33,6 +35,7 @@
     "@tiptap/starter-kit": "3.31.3",
     "@types/node": "24.13.3",
     "@types/ws": "8.18.1",
+    "better-auth": "1.6.23",
     "electron": "41.10.7",
     "esbuild": "0.28.2",
     "playwright": "1.62.1",
@@ -44,5 +47,10 @@
   },
   "config": {
     "forge": "./forge.config.cjs"
+  },
+  "overrides": {
+    "@better-auth/core": "1.6.23",
+    "vitest": "4.1.11",
+    "vite": "6.4.3"
   }
 }

@@ -4,7 +4,7 @@ import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {authAuthority,secureOrigin,type Identity} from '../src/auth/index.js';
+import {authAuthority,secureOrigin,browserSessionCookie,type Identity} from '../src/auth/index.js';
 import {identityLease} from '../src/auth/lease.js';
 import {sessionStorage} from '../src/auth/storage.js';
 import {workspaceClient} from '../src/auth/client.js';
@@ -54,4 +54,32 @@ test('native sessions stay in encrypted storage and workspace changes force reau
     },()=>alice.organizationId);
     await assert.rejects(client({action:'list'}),/auth_required/);assert.equal(expired,true);assert.equal(store.load(),undefined);
   }finally{await rm(directory,{recursive:true,force:true});}
+});
+test('browser RPC reuses only the Ablo cookie with exact-origin CSRF and workspace isolation',async()=>{
+  const store=randomUUID();
+  const verifyBrowser=authAuthority({url:'https://auth.example.test'},async(input,init)=>{
+    assert.equal(new Headers(init?.headers).get('cookie'),'__Secure-better-auth.session_token=signed-session');
+    assert.equal(new Headers(init?.headers).has('authorization'),false);
+    return Response.json(String(input).includes('get-session')?{user:{id:'alice',name:'Alice'},session:{activeOrganizationId:'team-a'}}:{userId:'alice',organizationId:'team-a',role:'member'});
+  },'cookie');
+  const service=hostedService({verifyBrowser,authority:workspace=>openAuthority(store,undefined,workspace)});
+  const cookie='unrelated=secret; __Secure-better-auth.session_token=signed-session; better-auth-staging.session_token=staging';
+  assert.equal(browserSessionCookie(new Headers({cookie})),'__Secure-better-auth.session_token=signed-session');
+  const call=(input:unknown,headers:Record<string,string>={})=>service(new Request('https://forum.abloatai.com/api/rpc',{method:'POST',headers:{origin:'https://forum.abloatai.com',cookie,...headers},body:JSON.stringify(input)}));
+  assert.equal((await call({action:'session'})).status,200);
+  for(const origin of ['https://evil.test','https://forum.abloatai.com.evil.test','https://lobby.abloatai.com','null'])assert.equal((await call({action:'create',id:randomUUID(),title:'CSRF'},{origin})).status,403);
+  assert.equal((await call({action:'session'},{origin:''})).status,401);
+  assert.equal((await call({action:'session'},{cookie:''})).status,401);
+  assert.equal((await call({action:'session'},{'x-forum-workspace':'team-b'})).status,401);
+  const signedOut=await call({action:'browser-sign-out'});assert.match(signedOut.headers.get('set-cookie')!,/__Host-forum-signed-out=1;.*HttpOnly/);
+  assert.equal((await call({action:'session'},{cookie:cookie+'; __Host-forum-signed-out=1'})).status,401);
+  const signedIn=await call({action:'browser-sign-in'});assert.match(signedIn.headers.get('set-cookie')!,/Max-Age=0/);
+});
+test('browser identity without an active team requires an actual organization membership',async()=>{
+  let members:any[]=[{userId:'alice',organizationId:'team-a',role:'member'}];
+  const verify=authAuthority({url:'https://auth.example.test'},async(input)=>{
+    const url=String(input);return Response.json(url.includes('get-session')?{user:{id:'alice',name:'Alice'},session:{}}:url.endsWith('organization/list')?[{id:'team-a'}]:{members});
+  },'cookie');
+  assert.deepEqual(await verify('better-auth.session_token=sample'),alice);
+  members=[{userId:'other',organizationId:'team-a',role:'member'}];await assert.rejects(verify('better-auth.session_token=sample'),/auth_required/);
 });
