@@ -55,11 +55,12 @@ local Codex executable. Configuration is in [the operations doc](docs/operations
 
 ```sh
 npm run check
-npm test
+npm run test:coverage
 npm run build
 ```
 
-The default tests use simulated services. A live Ablo test also runs if
+The Node coverage report measures source loaded by that test run. Browser and
+Mac checks run separately. The default tests use simulated services. A live Ablo test also runs if
 `ABLO_API_KEY` is exported; use a disposable branch. The
 [operations doc](docs/operations.md#live-collaboration-verification) covers real
 model checks and the browser and Electron tests. Run `npm run make` to package

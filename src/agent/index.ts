@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {identifier,type Request} from '../document/index.js';
-import {type actorClients,type Client} from '../ablo/index.js';
+import {commit,type actorClients,type Client} from '../ablo/index.js';
 import {documentTool} from './tools.js';
 import {runAgent,type AgentConfig} from './cli.js';
 export {hostedAgentConfiguration} from './hosted.js';
@@ -9,7 +9,7 @@ export function createChat(clients:ReturnType<typeof actorClients>,request:(inpu
   const owner=randomUUID(),running=new Map<string,{document:string;controller:AbortController;done:Promise<void>}>();
   const members=new Map<string,Map<string,{time:number;name:string}>>();
   async function add(client:Client,document:string,author:string,kind:string,text:string){
-    await client.commits.create({operations:[{action:'create',model:'forumMessages',id:randomUUID(),data:{document,author,kind,text,sender:'',intent:'',time:Date.now()}}],idempotencyKey:randomUUID(),wait:'confirmed'});
+    await commit(client,{operations:[{action:'create',model:'forumMessages',id:randomUUID(),data:{document,author,kind,text,sender:'',intent:'',time:Date.now()}}],idempotencyKey:randomUUID(),wait:'confirmed'});
   }
   async function chat(input:Request,client:Client,actor:string,name?:string,authorize=async()=>{}):Promise<unknown>{
     identifier(input.id);identifier(input.clientID);await request({action:'open',id:input.id},client);
@@ -24,7 +24,7 @@ export function createChat(clients:ReturnType<typeof actorClients>,request:(inpu
     }
     if(input.action==='chat-stop'){
       const runs=await client.forumRuns.list({where:{document:id,status:'running'},limit:100});
-      if(runs.length)await client.commits.create({operations:runs.map(run=>({action:'update' as const,model:'forumRuns',id:run.id,data:{status:'stop_requested'}})),idempotencyKey:randomUUID(),wait:'confirmed'});
+      if(runs.length)await commit(client,{operations:runs.map(run=>({action:'update' as const,model:'forumRuns',id:run.id,data:{status:'stop_requested'}})),idempotencyKey:randomUUID(),wait:'confirmed'});
       for(const run of running.values())if(run.document===id)run.controller.abort();return {ok:true};
     }
     if(input.action!=='chat-send')throw new Error('invalid_chat_action');identifier(input.messageID);
@@ -39,7 +39,7 @@ export function createChat(clients:ReturnType<typeof actorClients>,request:(inpu
     if(!config?.scripted&&input.agent&&!model)throw new Error('model_catalog_unavailable');
     if(model&&!config?.models?.some(item=>item.id===model))throw new Error('model_not_allowed');
     const runID=randomUUID(),label=`${config?.scripted?'Scripted test agent':config&&'provider'in config?'Agent':'Codex'} ${runID.slice(0,4)}`;
-    try{await client.commits.create({operations:[
+    try{await commit(client,{operations:[
       {action:'create',model:'forumMessages',id:input.messageID,data:{document:id,author,kind:'user',text:input.text.trim(),sender,intent,time:Date.now()}},
       ...(input.agent?[{action:'create' as const,model:'forumRuns',id:runID,data:{document:id,author:label,status:'running',owner,time:Date.now()}}]:[]),
     ],idempotencyKey:`chat:${input.messageID}`,wait:'confirmed'});}catch(error){if(!await previous())throw error;if(!input.agent||!await client.forumRuns.read({id:runID}))return {ok:true};}
@@ -53,7 +53,7 @@ export function createChat(clients:ReturnType<typeof actorClients>,request:(inpu
       catch(error){await add(agentClient,id,label,'tool',`${name} rejected; reread required`);const message=(error as Error).message;throw new Error(/^(stale_version|invalid_text|invalid_find|text_not_unique|invalid_paper|unknown_tool|stopped)(:|$)/.test(message)?message:'tool_failed');}
     },controller.signal,check).then(async answer=>{
       await check();const run=await agentClient.forumRuns.read({id:runID});if(!run||run.status!=='running')throw new Error('stopped');
-      await agentClient.commits.create({operations:[
+      await commit(agentClient,{operations:[
         {action:'create',model:'forumMessages',id:randomUUID(),data:{document:id,author:label,kind:'assistant',text:answer,sender:'',intent:'',time:Date.now()}},
         {action:'update',model:'forumRuns',id:runID,data:{status:'completed'}},
       ],reads:[run],idempotencyKey:`complete:${runID}`,wait:'confirmed'});

@@ -1,8 +1,20 @@
 import Ablo,{type AbloHttpClient} from '@abloatai/ablo';
+import {setTimeout as delay} from 'node:timers/promises';
 import Sessions from '@abloatai/ablo/sessions';
 import {schema as abloSchema} from './schema.js';
 export {schema as abloSchema} from './schema.js';
 export type Client=AbloHttpClient<typeof abloSchema.models>;
+
+// Contention is safe to retry unchanged. Stale captured reads must reach the caller.
+export async function commit(client:Client,input:Parameters<Client['commits']['create']>[0]){
+  for(let attempt=0;;attempt++){
+    try{return await client.commits.create(input);}
+    catch(error){
+      if(!error||typeof error!=='object'||!('code' in error)||error.code!=='decision_contended'||attempt>=5)throw error;
+      await delay(25*2**attempt+Math.floor(Math.random()*25));
+    }
+  }
+}
 
 // Project credentials and actor sessions stay in the native authority process.
 export function actorClients(apiKey=process.env.ABLO_API_KEY){

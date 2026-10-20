@@ -103,3 +103,30 @@ test('hosted RPC membership revocation aborts its running model after the bounde
   assert.equal((await rpc({action:'open',id})).status,401);
  }finally{await a.close();}
 });
+
+test('a stop racing the document commit rejects the edit as well as its assistant summary',async()=>{
+ const {clients}=await import('./fixtures/authority.js'),{openAuthority:open}=await import('../src/server/index.js');
+ const path=randomUUID(),actors=clients(path),get=actors.get.bind(actors),work:Promise<void>[]=[],id=randomUUID(),peer=openAuthority(path);let raced=false;
+ actors.get=(actor,agent)=>{
+  const client=get(actor,agent);if(!agent)return client;
+  const commit=client.commits.create.bind(client.commits);
+  client.commits.create=async(input:any)=>{
+   if(input.operations.some((op:any)=>op.model==='forumDocuments'&&op.action==='update')){raced=true;await peer.request({action:'chat-stop',id,clientID:'peer'});}
+   return commit(input);
+  };return client;
+ };
+ const model=new MockLanguageModelV3({doGenerate:[response([call('read_document',{})]),response([call('append_paragraph',{version:0,text:'Must not commit.'})]),response([{type:'text',text:'Must not publish.'}],'stop')]});
+ const a=open({...config(model),waitUntil:p=>work.push(p)},actors);
+ try{
+  const before=await a.request({action:'create',id,title:'Stop edit race'});
+  await a.request({action:'chat-send',id,clientID:'human',messageID:randomUUID(),text:'Append.',agent:true});await Promise.all(work);
+  assert.ok(raced);assert.deepEqual(await a.request({action:'open',id}),before);
+  const state=await peer.request({action:'chat-state',id,clientID:'peer'}) as any;assert.equal(state.run.status,'stopped');assert.equal(state.messages.filter((m:any)=>m.kind==='assistant').length,0);
+ }finally{await a.close();await peer.close();}
+});
+
+test('hosted generation stops at its tool-step budget instead of running indefinitely',async()=>{
+ const model=new MockLanguageModelV3({doGenerate:async()=>response([call('read_document',{})])});let executed=0;
+ await assert.rejects(runHostedAgent(config(model),'Keep reading.',async()=>{executed++;return {version:0};},new AbortController().signal,async()=>{}),/agent_limit_reached/);
+ assert.equal(model.doGenerateCalls.length,12);assert.equal(executed,12);
+});

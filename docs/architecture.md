@@ -24,6 +24,8 @@ The browser synchronously stores the same base, steps and client ID in localStor
 
 The limits are 32 bridge sockets, 16 admitted requests, 1 MiB requests, 256 steps per batch, 2 MB document JSON and a 1,000-document library. Full OT history is retained for offline rebasing; storage grows until acknowledged client horizons and compaction are implemented. Reads use bounded HTTP polling, not a rich-text CRDT or performance claim for large teams.
 
+`src/ablo` owns explicit commit retries for documents, steps, receipts, messages and runs. Only Ablo’s `decision_contended` code retries, with at most six attempts and exponential backoff with jitter. Each attempt keeps the same payload, captured reads and idempotency key. `stale_context`, authorization failures and idempotency conflicts propagate to the existing reread/error paths. A stop racing a retried agent write still invalidates its captured run premise. Retry exhaustion remains an error; the client retains its pending draft and reconciles unknown outcomes by pulling confirmed history.
+
 ## Agents and chat
 
 Forum does not acquire exclusive Ablo resource claims for document edits. Humans use ProseMirror OT; agent tools use captured-read commit guards and reread after stale-version rejection. Run records provide cancellation premises, not exclusive document ownership. This permits concurrent writers without locking a whole document for the duration of a model call.

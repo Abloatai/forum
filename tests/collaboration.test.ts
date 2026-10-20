@@ -4,27 +4,13 @@ import {mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {EditorState} from '@tiptap/pm/state';
-import {Step} from '@tiptap/pm/transform';
-import {collab, getVersion, receiveTransaction, sendableSteps} from 'prosemirror-collab';
-import {schema, type Snapshot, type Changes, type Request} from '../src/document/index.js';
+import {getVersion, sendableSteps} from 'prosemirror-collab';
+import {schema, type Snapshot} from '../src/document/index.js';
 import {startServer, openAuthority} from './fixtures/authority.js';
 import {connectBridge} from '../src/realtime/index.js';
+import {client} from './fixtures/editor.js';
 
 const token = 'synthetic-test-token-'.repeat(3);
-function client(snapshot: Snapshot, id: string) {
-  let state = EditorState.create({doc: schema.nodeFromJSON(snapshot.doc), plugins: [collab({version:snapshot.version,clientID:id})]});
-  return {
-    get state() {return state;},
-    insert(text: string, at = 1) {state = state.apply(state.tr.insertText(text,at));},
-    bold(from: number,to: number) {state = state.apply(state.tr.addMark(from,to,schema.marks.bold.create()));},
-    request(): Request {const p = sendableSteps(state)!; return {action:'submit',id:snapshot.id,version:p.version,clientID:p.clientID,operationId:randomUUID(),steps:p.steps.map(s=>s.toJSON())};},
-    async pull(bridge: ReturnType<typeof connectBridge>) {
-      const changes = await bridge.request({action:'changes',id:snapshot.id,version:getVersion(state)}) as Changes;
-      state = state.apply(receiveTransaction(state,changes.steps.map(s=>Step.fromJSON(schema,s)),changes.clientIDs));
-    },
-  };
-}
 test('real Lobby bridge: concurrent same-paragraph OT, formatting, disconnect, lost response, restart',async()=>{
  const documentID=randomUUID();
   const directory = await mkdtemp(join(tmpdir(),'lobby-docs-test-')), database = join(directory,'docs.sqlite');

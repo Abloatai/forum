@@ -28,3 +28,12 @@ test('native email uses issuer OTP endpoints, validates input and never exposes 
   await signIn.sendEmailCode(' Sample@Example.test ');assert.equal(await signIn.verifyEmailCode('sample@example.test','123456'),'email-session');
   assert.deepEqual(calls,[{path:'/api/auth/email-otp/send-verification-otp',body:{email:'sample@example.test',type:'sign-in'}},{path:'/api/auth/sign-in/email-otp',body:{email:'sample@example.test',otp:'123456'}}]);
 });
+
+test('native sign-in rejects issuer failures and malformed tokens without exposing response diagnostics',async()=>{
+ const rejected=nativeSignIn('https://forum.abloatai.com',async()=>Response.json({error:'synthetic-private-diagnostic'},{status:503}));
+ await assert.rejects(rejected.sendEmailCode('sample@example.test'),error=>error instanceof Error&&error.message==='Sign-in could not finish. Please try again.');
+ for(const token of [undefined,'','contains spaces',123,'a'.repeat(4097)]){
+  const invalid=nativeSignIn('https://forum.abloatai.com',async()=>Response.json({token}));
+  await assert.rejects(invalid.verifyEmailCode('sample@example.test','123456'),/Invalid sign-in response/);
+ }
+});

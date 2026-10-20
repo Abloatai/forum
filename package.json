@@ -25,7 +25,9 @@
     "test:browser": "npm run build && node --import tsx tests/browser.mts",
     "test:desktop": "npm run build && node --import tsx tests/desktop.mts",
     "test:agents:live": "node --import tsx tests/hosted-agents-live.mts",
-    "test:agents:browser": "npm run build && node --import tsx tests/hosted-agent-browser.mts"
+    "test:agents:browser": "npm run build && node --import tsx tests/hosted-agent-browser.mts",
+    "test:coverage": "node --import tsx --experimental-test-coverage --test --test-coverage-include=\"src/**/*.ts\" --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=80 tests/*.test.ts",
+    "test:concurrency:live": "node --import tsx tests/concurrency-live.mts"
   },
   "devDependencies": {
     "@abloatai/ablo": "0.66.16",

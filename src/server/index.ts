@@ -1,7 +1,7 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {Step} from '@tiptap/pm/transform';
 import {schema,emptyDocument,identifier,validateRequest,defaultPaper,paperSettings,type Snapshot,type Request} from '../document/index.js';
-import {actorClients,type Client} from '../ablo/index.js';
+import {actorClients,commit,type Client} from '../ablo/index.js';
 import {createChat} from '../agent/index.js';
 import {discoverModels} from '../agent/models.js';
 import {agentConfiguration,type AgentConfig} from '../agent/cli.js';
@@ -19,7 +19,7 @@ export function openAuthority(agent?:AgentConfig,clients=actorClients(),workspac
     if(input.action==='create'){
       if(typeof input.title!=='string'||!input.title.trim()||input.title.length>120)throw new Error('invalid_title');
       const existing=await client.forumDocuments.read({id:input.id});if(existing){if(existing.workspace!==workspace)throw new Error('document_not_found');return snapshot(existing);}
-      await client.commits.create({operations:[{action:'create',model:'forumDocuments',id:input.id,data:{workspace,time:Date.now(),title:input.title.trim(),doc:JSON.stringify(emptyDocument),version:0,layout:'page',paper:JSON.stringify(defaultPaper)}}],idempotencyKey:`create:${input.id}`,wait:'confirmed'});
+      await commit(client,{operations:[{action:'create',model:'forumDocuments',id:input.id,data:{workspace,time:Date.now(),title:input.title.trim(),doc:JSON.stringify(emptyDocument),version:0,layout:'page',paper:JSON.stringify(defaultPaper)}}],idempotencyKey:`create:${input.id}`,wait:'confirmed'});
       return documentRequest({action:'open',id:input.id},client);
     }
     const row=await client.forumDocuments.read({id:input.id});if(!row||row.workspace!==workspace)throw new Error('document_not_found');
@@ -39,7 +39,7 @@ export function openAuthority(agent?:AgentConfig,clients=actorClients(),workspac
         if(input.expectedTitle!==current.title||input.version!==current.version)throw new Error('stale_version: read_document again before naming');
         data={title:input.title.trim()};
       }else{if(!['page','flow'].includes(String(input.layout)))throw new Error('invalid_layout');data={layout:input.layout as string};}
-      try{await client.commits.create({operations:[{action:'update',model:'forumDocuments',id:row.id,data}],reads,idempotencyKey:randomUUID(),wait:'confirmed'});}catch(error){if(stale(error))throw new Error('stale_version: read_document again');throw error;}
+      try{await commit(client,{operations:[{action:'update',model:'forumDocuments',id:row.id,data}],reads,idempotencyKey:randomUUID(),wait:'confirmed'});}catch(error){if(stale(error))throw new Error('stale_version: read_document again');throw error;}
       return {...current,...data,...(data.paper?{paper:JSON.parse(data.paper)}:{})};
     }
     if(!Number.isSafeInteger(input.version)||(input.version as number)<0||(input.version as number)>current.version)throw new Error('invalid_version');
@@ -61,7 +61,7 @@ export function openAuthority(agent?:AgentConfig,clients=actorClients(),workspac
     const result={accepted:true,version:from+input.steps.length};
     // shortcut: retain OT history for offline rebasing; compact only with acknowledged client horizons.
     try{
-      await client.commits.create({operations:[
+      await commit(client,{operations:[
         {action:'update',model:'forumDocuments',id:row.id,data:{doc:JSON.stringify(doc.toJSON()),version:result.version}},
         ...input.steps.map((step,index)=>({action:'create' as const,model:'forumSteps',id:randomUUID(),data:{document:row.id,version:from+index+1,step:JSON.stringify(step),client:input.clientID as string}})),
         {action:'create',model:'forumReceipts',id:input.operationId,data:{digest,result:JSON.stringify(result)}},

@@ -30,7 +30,7 @@ try{
   const code=Buffer.from(JSON.stringify({state:query.get('state'),identifier:'a'.repeat(32)})).toString('base64url');
   await context.addCookies([{name:'better-auth.electron',value:code,url:origin,httpOnly:false}]);
   // Suppress the native redirect timer so this browser-only test cannot launch a real app.
-  await page.addInitScript(()=>{window.setInterval=(()=>0) as typeof window.setInterval;});
+  await page.addInitScript({content:'window.setInterval = () => 0;'});
   await page.goto(origin+'/signin/desktop/?'+query);const link=page.getByRole('link',{name:'Open Forum',exact:true});await link.waitFor();
   assert.equal(await link.getAttribute('href'),'com.ablo.forum://auth/callback#token='+code);assert.equal(requests,1);
   assert.deepEqual(errors,[]);await context.close();console.log('PASS: compiled desktop page initiates Google once with the native PKCE query, rejects invalid links, and produces the matching Forum callback (intercepted provider responses; native redirect timer suppressed).');

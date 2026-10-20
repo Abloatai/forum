@@ -55,7 +55,7 @@ try{
   const encrypted=await app!.evaluate(({safeStorage},value)=>safeStorage.encryptString(JSON.stringify(value)).toString('base64'),{binding:site,token:'synthetic-session',identity});
   await app!.close();app=undefined;
   await writeFile(join(profile,'auth-session.bin'),Buffer.from(encrypted,'base64'),{mode:0o600});
-  page=await launch();await page.getByRole('button',{name:'New document',exact:true}).click();
+  page=await launch();await page.getByRole('button',{name:'Account',exact:true}).waitFor();await page.getByRole('button',{name:'New document',exact:true}).click();
   const editor=page.locator('.tiptap');await editor.pressSequentially('A synthetic sign-in check.');
   await page.waitForFunction(()=>document.getElementById('status')?.textContent==='Synced');
   const documentID=await page.locator('#library [aria-current="true"]').getAttribute('data-document-id');assert.ok(documentID);
