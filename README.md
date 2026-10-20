@@ -50,3 +50,7 @@ npm run make
 `npm test` runs unit checks with a clearly labeled in-memory authority contract double and skips the live SDK check unless `ABLO_API_KEY` is exported. `test:integration` and `test:electron` load `.env.local` and require a disposable development branch. They create synthetic documents and chat records there. On headless Linux, use `xvfb-run -a` for Electron. Forge produces a Mac ZIP. Publisher-provided signing identity and OS-keychain notarization profile enable signed, notarized builds without putting Apple credentials in source. The preview targets macOS Apple Silicon; automatic updates and Windows are not implemented.
 
 [Architecture](docs/architecture.md), [local recovery](docs/operations.md), [source provenance](docs/provenance.md), [source review](docs/source-sharing.md).
+
+## License
+
+[MIT](LICENSE). Adapted sources and inherited notices are listed in [source provenance](docs/provenance.md). The Ablo SDK retains its own license; the hosted Ablo service is separate. No service credentials or deployment infrastructure are included.

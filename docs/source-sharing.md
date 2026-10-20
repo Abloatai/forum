@@ -1,7 +1,15 @@
-# Source review
+# Source release boundary
 
-Forum is prepared as a standalone Electron editor with hosted Ablo sign-in and an optional localhost development mode with a fresh source-only Git history. Runtime profiles, databases, credentials, model profiles, recordings, dependency caches and generated packages are excluded from Git. The repository remains private; no public release is implied.
+Forum is an MIT-licensed browser and Electron document application. The source supports local development with a developer’s own hosted Ablo project. Hosting the application yourself does not include or replace the hosted Ablo service. See the [README](../README.md) for setup and [source provenance](provenance.md) for adapted sources and inherited notices.
 
-Gitleaks 8.30.1 is used against all Git refs/full history and the complete tracked/unignored source snapshot, with fully redacted reports kept outside Git. Repeat that check on the exact proposed public commit. A passing scanner checks known credential patterns; it is not a guarantee that every possible private datum is recognizable.
+## Included and excluded
 
-`LICENSE.lobby` retains the inherited MIT notice. The package remains `UNLICENSED`: the owners still need to confirm redistribution rights for reused sources and choose a product license before a public release.
+The repository includes application code, the Ablo document schema, generic authenticated API handlers, the landing page, tests, and local packaging configuration. Terraform, production deployment recipes, runtime profiles, databases, credentials, model profiles, recordings, dependency caches and generated packages are excluded. Deployment infrastructure is maintained separately and is not part of this release.
+
+`package.json` stays `private: true` to prevent accidental npm publication; that setting does not restrict the MIT source license or GitHub repository visibility. The signed Mac preview is a separate downloadable artifact; building from source does not provide the publisher’s Apple signing identity or hosted service credentials.
+
+## Publication checks
+
+Run Gitleaks against all Git refs/full history and a clean tracked-source snapshot on the exact proposed public commit. Keep fully redacted reports outside Git. Also review tracked paths, provenance, commit messages and GitHub discussions for private data that a credential-pattern scanner cannot recognize. Never commit scanner reports containing findings, credentials or private verification traces.
+
+A passing scanner checks known credential patterns; it cannot guarantee that every possible private datum is recognizable. Runtime credentials belong in ignored local configuration or the operator’s secret store. This license covers Forum source; dependency licenses and the separate hosted Ablo service still apply.

@@ -10,4 +10,4 @@
 
 Undo/redo uses Tiptap/ProseMirror history. Decks’ Ablo `useUndoScope` mutation-history subsystem was inspected but is not integrated. Pagination converts fitted DOM coordinates back into paper units so changing window size does not change its paper geometry.
 
-No model credentials, profiles, user documents or recordings are included. The product remains `UNLICENSED` pending the owners’ license/redistribution decision for the reused sources.
+No model credentials, profiles, user documents or recordings are included. Forum source is released under the MIT license in `LICENSE`, following the repository owner’s instruction to publish it as open source. `LICENSE.lobby` retains the inherited Ablo MIT notice. The Decks-derived portions come from the owner’s `LuckyMonkyBaby/decks-monorepo` source; this release licenses the adapted Forum source, not that private repository. Dependencies retain their own licenses, including the Apache-2.0 Ablo SDK. The hosted Ablo service is separate and is not included in this source release.
