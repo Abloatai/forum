@@ -18,7 +18,8 @@ const clients=actorClients();assert.ok((await clients.workspace()).endsWith(':'+
 let notifyProvider:(()=>void)|undefined;
 const work:Promise<void>[]=[],makeConfig=(model:string):HostedAgentConfig=>({...base,model,waitUntil:p=>work.push(p),provider:id=>{const model=base.provider(id);if(typeof model==='string'||model.specificationVersion!=='v3')throw Error('Live trace requires a V3 provider.');return wrapLanguageModel({model,middleware:{specificationVersion:'v3',wrapGenerate:async({params,doGenerate})=>{
  notifyProvider?.();notifyProvider=undefined;events.push({event:'model.request',model:id,prompt:params.prompt,tools:params.tools});
- const result=await doGenerate();events.push({event:'model.response',model:id,content:result.content,usage:result.usage,finishReason:result.finishReason});return result;
+ try{const result=await doGenerate();events.push({event:'model.response',model:id,content:result.content,usage:result.usage,finishReason:result.finishReason});return result;}
+ catch(error){events.push({event:'model.error',model:id,name:(error as Error).name,status:(error as {statusCode?:number}).statusCode??null});throw error;}
 }}});}});
 const firstModel=base.models[0].id,secondModel=base.models.find(model=>model.id.split('/')[0]!==firstModel.split('/')[0])?.id??base.models[1]?.id??firstModel;
 const a=openAuthority(makeConfig(firstModel),clients,'synthetic-live-agent-team'),b=openAuthority(makeConfig(secondModel),actorClients(),'synthetic-live-agent-team');
@@ -38,6 +39,8 @@ try{
  await a.request({...input,clientID:'human-alpha'},'human-alpha','human-alpha');
  await Promise.all(work);
  const state=await a.request({action:'chat-state',id,clientID:'human'}) as any,final=await text();
+ const failures=events.filter((event:any)=>event.event==='model.error') as {model:string;status:number|null}[];
+ if(failures.length){events.push({event:'verification',passed:false,document:id,finalText:final});throw Error('Live provider failed: '+failures.map(error=>`${error.model} HTTP ${error.status??'unknown'}`).join(', ')+'. Inspect the private trace; this is not a passing model check.');}
  assert.equal(state.activeRuns,0);assert.equal(state.messages.filter((m:any)=>m.kind==='assistant').length,2,JSON.stringify(state.messages.filter((m:any)=>m.kind==='system')));
  for(const value of [alpha,beta,human])assert.equal(final.split(value).length-1,1,final);
  assert.equal(state.messages.filter((m:any)=>m.kind==='user').length,2,'Retry must not start a duplicate run.');
@@ -52,6 +55,6 @@ try{
 }finally{
  await a.close();await b.close();
  // Fixture text only; never persist credentials, provider headers or request options.
- const serialized=JSON.stringify({traceID,branch,events},null,2);if(serialized.includes(process.env.FORUM_MODEL_API_KEY!))throw Error('Refuse trace containing provider credential');
+ const serialized=JSON.stringify({traceID,branch,events},null,2);if([process.env.FORUM_MODEL_API_KEY,process.env.ABLO_API_KEY].some(key=>key&&serialized.includes(key)))throw Error('Refuse trace containing a credential');
  await writeFile(resolve(directory,'trace.json'),serialized,{mode:0o600});
 }

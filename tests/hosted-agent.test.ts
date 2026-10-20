@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {MockLanguageModelV3} from 'ai/test';
+import {createGateway} from 'ai';
 import {runHostedAgent,type HostedAgentConfig} from '../src/agent/hosted.js';
 import {openAuthority} from './fixtures/authority.js';
 import {schema,type Snapshot} from '../src/document/index.js';
@@ -58,10 +59,10 @@ test('hosted runs stop across authorities and provider diagnostics never enter s
   await b.request({action:'chat-stop',id,clientID:'b'});await Promise.all(work);
   const state=await b.request({action:'chat-state',id,clientID:'b'}) as any;assert.equal(state.run.status,'stopped');assert.doesNotMatch(JSON.stringify(state),/synthetic-private-provider-key/);
  }finally{await a.close();await b.close();}
- const failing=new MockLanguageModelV3({doGenerate:async()=>{throw Error('synthetic-private-provider-key');}}),failedWork:Promise<void>[]=[];
- const c=openAuthority(randomUUID(),{...config(failing),waitUntil:p=>failedWork.push(p)}),document=randomUUID();
+ let providerCalls=0;const failing=createGateway({apiKey:'synthetic-gateway-key',fetch:async()=>{providerCalls++;return Response.json({error:{message:'synthetic-private-provider-key',type:'insufficient_funds'}},{status:402});}}),failedWork:Promise<void>[]=[];
+ const c=openAuthority(randomUUID(),{provider:failing,models,waitUntil:p=>failedWork.push(p)}),document=randomUUID();
  try{await c.request({action:'create',id:document,title:'Synthetic error check'});await c.request({action:'chat-send',id:document,clientID:'c',messageID:randomUUID(),text:'Try.',agent:true});await Promise.all(failedWork);
-  const state=await c.request({action:'chat-state',id:document,clientID:'c'}) as any;assert.equal(state.run.status,'failed');assert.doesNotMatch(JSON.stringify(state),/synthetic-private-provider-key/);
+  const state=await c.request({action:'chat-state',id:document,clientID:'c'}) as any;assert.equal(state.run.status,'failed');assert.equal(providerCalls,1);assert.doesNotMatch(JSON.stringify(state),/synthetic-private-provider-key|synthetic-gateway-key/);
  }finally{await c.close();}
 });
 
