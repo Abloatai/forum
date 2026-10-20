@@ -66,7 +66,10 @@ function newWindow() {
   const state = {window, bridge: workspaceBridge(), offline: false};
   const windowId = window.webContents.id;
   windows.set(windowId, state);
-  window.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
+  window.webContents.setWindowOpenHandler(({url}) => {
+    try{const target=new URL(url);if(['http:','https:'].includes(target.protocol)&&!target.username&&!target.password)void shell.openExternal(target.href).catch(()=>{});}catch{/* Invalid links stay inside the denied popup. */}
+    return {action:'deny'};
+  });
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.webContents.on('will-attach-webview', event => event.preventDefault());
   window.on('closed', () => {state.bridge.close(); windows.delete(windowId);});

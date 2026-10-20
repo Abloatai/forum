@@ -5,9 +5,9 @@ const shared = {bundle: true, platform: 'node', target: 'node24', sourcemap: tru
 await Promise.all([
   build({...shared, entryPoints: ['src/main/index.ts'], outfile: 'dist/main/index.cjs'}),
   build({...shared, entryPoints: ['src/preload/index.ts'], outfile: 'dist/preload/index.cjs'}),
-  build({bundle: true, platform: 'browser', target: 'chrome146', entryPoints: ['src/renderer/index.ts'], outfile: 'dist/renderer/index.js', format: 'iife'}),
-  build({bundle:true,platform:'browser',target:'es2022',entryPoints:['src/browser/index.ts'],outfile:'dist/browser/index.js',format:'iife'}),
-  build({bundle:true,platform:'browser',target:'es2022',entryPoints:['src/browser/desktop.ts'],outfile:'dist/desktop/index.js',format:'iife'}),
+  build({bundle: true, platform: 'browser', define:{'process.env.NODE_ENV':'"production"'}, target: 'chrome146', entryPoints: ['src/renderer/index.ts'], outfile: 'dist/renderer/index.js', format: 'iife'}),
+  build({bundle:true,platform:'browser',define:{'process.env.NODE_ENV':'"production"'},target:'es2022',entryPoints:['src/browser/index.ts'],outfile:'dist/browser/index.js',format:'iife'}),
+  build({bundle:true,platform:'browser',define:{'process.env.NODE_ENV':'"production"'},target:'es2022',entryPoints:['src/browser/desktop.ts'],outfile:'dist/desktop/index.js',format:'iife'}),
 ]);
 await mkdir('dist/renderer', {recursive: true});
 await Promise.all(['index.html', 'style.css'].map(name => copyFile('src/renderer/'+name, 'dist/renderer/'+name)));

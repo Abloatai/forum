@@ -6,7 +6,9 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import assert from 'node:assert/strict';
 import {hostedService} from '../src/hosted/index.js';
-import {openAuthority} from './fixtures/authority.js';
+import {openAuthority,clients} from './fixtures/authority.js';
+import {randomUUID} from 'node:crypto';
+import {markdownReply,checkMarkdown} from './fixtures/markdown.js';
 const profile=await mkdtemp(join(tmpdir(),'forum-native-auth-'));
 const identity={userId:'synthetic-member',organizationId:'synthetic-team',workspace:'synthetic-team',name:'Sample member'};
 const service=hostedService({verify:async token=>{if(token!=='synthetic-session')throw new Error('auth_required');return identity;},authority:workspace=>openAuthority(profile,undefined,workspace)});
@@ -17,7 +19,7 @@ const server=createServer(async(req,res)=>{
 });
 await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
 const site=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
-const env={...process.env,LOBBY_DOCS_PROFILE:profile,FORUM_API_URL:site};delete env.ABLO_API_KEY;delete env.ELECTRON_RUN_AS_NODE;
+const env:Record<string,string>={...process.env,LOBBY_DOCS_PROFILE:profile,FORUM_API_URL:site};delete env.ABLO_API_KEY;delete env.ELECTRON_RUN_AS_NODE;
 let app:Awaited<ReturnType<typeof electron.launch>>|undefined;
 async function launch(){app=await electron.launch({...(process.env.FORUM_TEST_EXECUTABLE?{executablePath:process.env.FORUM_TEST_EXECUTABLE,args:[]}:{args:['.']}),env,...(process.env.FORUM_NATIVE_VIDEO_DIR?{recordVideo:{dir:process.env.FORUM_NATIVE_VIDEO_DIR,size:{width:1280,height:900}}}:{})});app.context().setDefaultTimeout(15000);return app.firstWindow();}
 try{
@@ -56,8 +58,14 @@ try{
   page=await launch();await page.getByRole('button',{name:'New document',exact:true}).click();
   const editor=page.locator('.tiptap');await editor.pressSequentially('A synthetic sign-in check.');
   await page.waitForFunction(()=>document.getElementById('status')?.textContent==='Synced');
+  const documentID=await page.locator('#library [aria-current="true"]').getAttribute('data-document-id');assert.ok(documentID);
+  await clients(profile).get('fixture-seed').commits.create({operations:[['tool','read_document completed','Agent a1b2'],['assistant',markdownReply,'Agent a1b2'],['assistant','**Earlier reply**.','Codex c3d4']].map(([kind,text,author])=>({action:'create' as const,model:'forumMessages',id:randomUUID(),data:{document:documentID,author,kind,text,sender:'',intent:'',time:Date.now()}})),idempotencyKey:randomUUID(),wait:'confirmed'});
+  await checkMarkdown(page);
+  await app!.evaluate(({shell})=>{const state=globalThis as any;state.markdownOpen=shell.openExternal;state.markdownLinks=[];shell.openExternal=async url=>{state.markdownLinks.push(url);};});
+  await page.getByRole('link',{name:'Safe link',exact:true}).click();await page.waitForTimeout(100);assert.deepEqual(await app!.evaluate(()=>(globalThis as any).markdownLinks),['https://example.test/docs']);
+  await app!.evaluate(({shell})=>{shell.openExternal=(globalThis as any).markdownOpen;});
   await app!.close();app=undefined;
-  page=await launch();await page.locator('#library button').first().click();await page.locator('.tiptap').getByText('A synthetic sign-in check.').waitFor();
+  page=await launch();await page.locator('#library button').first().click();await page.locator('.tiptap').getByText('A synthetic sign-in check.').waitFor();await checkMarkdown(page);
   assert.equal((await readFile(join(profile,'auth-session.bin'))).includes('synthetic-session'),false);
   await page.getByRole('button',{name:'Account',exact:true}).click();await page.getByRole('button',{name:'Sign out',exact:true}).click();
   await page.getByRole('button',{name:'Continue with Google'}).waitFor();
@@ -81,5 +89,5 @@ try{
   await page.getByRole('textbox',{name:'Email sign-in code',exact:true}).fill('123456');await page.getByRole('button',{name:'Verify code',exact:true}).click();
   await page.getByRole('button',{name:'New document',exact:true}).waitFor();
   assert.equal((await app!.evaluate(()=>(globalThis as any).emailRequests)).filter((request:any)=>request.url.endsWith('send-verification-otp')).length,1);
-  console.log('PASS: native Google/email controls, one Google launch, S256 code exchange, email code retry, OS-encrypted session restore, document editing, restart and sign-out. Explicit simulated issuer and in-memory Ablo authority; no real browser or email opened.');
+  console.log('PASS: native Google/email controls, one Google launch, S256 code exchange, email code retry, OS-encrypted session restore, document editing, restart, Streamdown Markdown, hidden agent IDs, safe external links and sign-out. Explicit simulated issuer and in-memory Ablo authority; no real browser or email opened.');
 }finally{await app?.close();await new Promise<void>(resolve=>server.close(()=>resolve()));await rm(profile,{recursive:true,force:true});}
