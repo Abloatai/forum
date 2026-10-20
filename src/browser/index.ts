@@ -31,14 +31,19 @@ window.lobbyDocs={
   async signIn(){
     if(popup&&!popup.closed){popup.focus();return;}
     popup=window.open('about:blank','forum-sign-in','popup,width=540,height=740');
-    await rpc({action:'browser-sign-in'});checked=false;checkedAt=0;
+    checked=false;checkedAt=0;
     if((await authState()).signedIn){popup?.close();location.reload();return;}
     // Reuse Coding's ordinary Google/email sign-in and shared HttpOnly cookie.
-    // No device approval, exported bearer token or new Auth origin is required.
+    // No device approval or exported bearer token is required.
     if(popup)popup.location.href='https://www.abloatai.com/signin?next=%2Fapp';
     message=popup?'Finish signing in in the other window.':'Allow the sign-in window, then try again.';
   },
-  async signOut(){await rpc({action:'browser-sign-out'});location.reload();},
+  async signOut(){
+    try{
+      const response=await fetch('https://auth.abloatai.com/api/auth/sign-out',{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:'{}',redirect:'error',signal:AbortSignal.timeout(15000)});
+      if(!response.ok)throw new Error('Sign-out failed');location.reload();
+    }catch{const error=document.getElementById('error')!;error.hidden=false;error.textContent='Could not sign out. Please try again.';}
+  },
   async list(){return identity?(await rpc({action:'list'})).result:[];},
   async create(title:string){return (await rpc({action:'create',id:crypto.randomUUID(),title})).result;},
   async open(id:string){

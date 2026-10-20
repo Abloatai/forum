@@ -12,6 +12,6 @@ await Promise.all([
 await mkdir('dist/renderer', {recursive: true});
 await Promise.all(['index.html', 'style.css'].map(name => copyFile('src/renderer/'+name, 'dist/renderer/'+name)));
 await copyFile('src/renderer/style.css','dist/browser/style.css');
-const html=(await readFile('src/renderer/index.html','utf8')).replace("connect-src 'none'","connect-src 'self'").replace('Continue with Ablo','Sign in');
+const html=(await readFile('src/renderer/index.html','utf8')).replace("connect-src 'none'","connect-src 'self' https://auth.abloatai.com").replace('Continue with Ablo','Sign in');
 await writeFile('dist/browser/index.html',html);
 await copyFile('src/browser/desktop.html','dist/desktop/index.html');

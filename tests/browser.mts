@@ -32,6 +32,11 @@ const video=process.env.FORUM_BROWSER_VIDEO_DIR;if(video)await mkdir(video,{recu
 const browser=await chromium.launch();
 try{
   const context=await browser.newContext({viewport:{width:1280,height:900},...(video?{recordVideo:{dir:video,size:{width:1280,height:900}}}:{})});
+  await context.route('https://www.abloatai.com/**',route=>route.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>Sample shared Google/email sign-in page</h1>'}));
+  await context.route('https://auth.abloatai.com/api/auth/sign-out',async route=>{
+    if(route.request().method()==='POST')await context.clearCookies({name:'better-auth.session_token'});
+    await route.fulfill({headers:{'access-control-allow-origin':origin,'access-control-allow-credentials':'true','access-control-allow-methods':'POST, OPTIONS','access-control-allow-headers':'content-type'},json:{success:true}});
+  });
   await context.addCookies([{name:'better-auth.session_token',value:'sample-session',url:origin,httpOnly:true}]);
   const page=await context.newPage(),errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(origin+'/app/');await page.getByRole('button',{name:'New document',exact:true}).click();
@@ -56,12 +61,15 @@ try{
   if(video){await recovered.screenshot({path:resolve(video,'browser-editor.png')});await recovered.waitForTimeout(1500);}
   await recovered.getByRole('button',{name:'Account',exact:true}).click();await recovered.getByRole('button',{name:'Sign out',exact:true}).click();await recovered.getByRole('button',{name:'Sign in',exact:true}).waitFor();
   assert.equal(await recovered.locator('.workspace').isVisible(),false);
-  await recovered.getByRole('button',{name:'Sign in',exact:true}).click();await recovered.getByRole('button',{name:'New document',exact:true}).waitFor();
+  assert.equal((await context.cookies()).some(cookie=>cookie.name==='better-auth.session_token'),false);
+  await recovered.getByRole('button',{name:'Sign in',exact:true}).click();
+  await context.addCookies([{name:'better-auth.session_token',value:'sample-session',url:origin,httpOnly:true}]);
+  await recovered.getByRole('button',{name:'New document',exact:true}).waitFor();
   revoked=true;await recovered.waitForTimeout(11000);await recovered.getByRole('button',{name:'Sign in',exact:true}).waitFor();
   assert.deepEqual(errors,[]);await context.close();
   const anonymous=await browser.newContext();await anonymous.route('https://www.abloatai.com/**',route=>route.fulfill({contentType:'text/html',body:'<h1>Sample shared Google/email sign-in page</h1>'}));
   const signedOut=await anonymous.newPage();await signedOut.goto(origin+'/app/');
   const popup=signedOut.waitForEvent('popup');await signedOut.getByRole('button',{name:'Sign in',exact:true}).click();const login=await popup;await login.waitForURL('https://www.abloatai.com/signin?next=%2Fapp');
   assert.equal(login.url().includes('/cli'),false);await anonymous.close();
-  console.log('PASS: browser cookie SSO, editor, two independent OT clients, shared chat, closed-tab pending draft recovery, Forum-only sign-out/re-entry, revocation, and normal shared sign-in (simulated issuer and storage; sign-in page intercepted).');
+  console.log('PASS: browser cookie SSO, editor, two independent OT clients, shared chat, closed-tab pending recovery, shared issuer sign-out, fresh sign-in/re-entry, revocation, and normal shared sign-in (simulated issuer and storage; sign-in page intercepted).');
 }finally{await browser.close();await new Promise<void>(done=>server.close(()=>done()));}

@@ -71,9 +71,7 @@ test('browser RPC reuses only the Ablo cookie with exact-origin CSRF and workspa
   assert.equal((await call({action:'session'},{origin:''})).status,401);
   assert.equal((await call({action:'session'},{cookie:''})).status,401);
   assert.equal((await call({action:'session'},{'x-forum-workspace':'team-b'})).status,401);
-  const signedOut=await call({action:'browser-sign-out'});assert.match(signedOut.headers.get('set-cookie')!,/__Host-forum-signed-out=1;.*HttpOnly/);
-  assert.equal((await call({action:'session'},{cookie:cookie+'; __Host-forum-signed-out=1'})).status,401);
-  const signedIn=await call({action:'browser-sign-in'});assert.match(signedIn.headers.get('set-cookie')!,/Max-Age=0/);
+  assert.equal((await call({action:'browser-sign-out'})).status,400);
 });
 test('browser identity without an active team requires an actual organization membership',async()=>{
   let members:any[]=[{userId:'alice',organizationId:'team-a',role:'member'}];

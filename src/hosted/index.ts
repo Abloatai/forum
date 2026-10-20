@@ -27,13 +27,7 @@ export function hostedService(options:{verify?:(token:string)=>Promise<Identity>
       const text=await request.text();if(Buffer.byteLength(text)>1_048_576)return json({error:'request_too_large'},413);
       let input:DocumentRequest|{action:'session'};
       try{input=JSON.parse(text);}catch{return json({error:'invalid_request'},400);}
-      if(browser&&['browser-sign-in','browser-sign-out'].includes(input?.action)){
-        const signingOut=input.action==='browser-sign-out';
-        const response=json({result:true});
-        response.headers.set('set-cookie',`__Host-forum-signed-out=${signingOut?'1':''}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${signingOut?31536000:0}`);
-        return response;
-      }
-      if(browser&&(/(?:^|;\s*)__Host-forum-signed-out=1(?:;|$)/.test(request.headers.get('cookie')??'')||!cookie))throw new Error('auth_required');
+      if(browser&&!cookie)throw new Error('auth_required');
       const identity=browser?await verifyBrowser(cookie):await verify(authorization!.slice(7));
       const expected=request.headers.get('x-forum-workspace');
       if(expected&&expected!==identity.organizationId)throw new Error('auth_required');

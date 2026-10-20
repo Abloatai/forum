@@ -22,7 +22,8 @@
     "test:integration": "node --env-file-if-exists=.env.local --import tsx --test tests/*.test.ts",
     "test:auth": "npm run build && node --import tsx tests/native-auth.mts",
     "test:site": "node tests/site.mjs",
-    "test:browser": "npm run build && node --import tsx tests/browser.mts"
+    "test:browser": "npm run build && node --import tsx tests/browser.mts",
+    "test:desktop": "npm run build && node --import tsx tests/desktop.mts"
   },
   "devDependencies": {
     "@abloatai/ablo": "0.66.16",

@@ -42,6 +42,7 @@ npm run test:integration
 npm run test:electron
 npm run test:auth
 npm run test:browser
+npm run test:desktop
 npm run test:site
 npm run make
 ```
