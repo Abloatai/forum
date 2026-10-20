@@ -56,7 +56,7 @@ try{
   assert.equal(await page.locator('.bootstrap-spinner').evaluate(node=>getComputedStyle(node).animationName),'none');
   releaseSession();await listStarted;
   assert.equal(await page.locator('#bootstrap').isVisible(),true,'Wait for the document list after authentication.');
-  releaseList();await page.getByRole('button',{name:'New document',exact:true}).click();
+  releaseList();await page.getByRole('button',{name:'Write without agents',exact:true}).click();await page.getByRole('button',{name:'New document',exact:true}).click();
   assert.equal(await page.locator('#bootstrap').isVisible(),false);
   const failed=await context.newPage();
   await failed.route('**/api/rpc',route=>route.request().postDataJSON().action==='list'?route.fulfill({status:503,json:{error:'Sample document list unavailable'}}):route.continue());

@@ -69,3 +69,12 @@ Run `npm run test:pages` for actual compiled-editor pagination, viewport stabili
 Paged mode draws white sheets with a full-width gutter at each configured page height. Paper size and margins still come from shared document metadata. Pagination measures edited blocks before paint, reuses unchanged geometry and does not reset when only display zoom changes. The canvas reserves scrollbar space and does not automatically scroll back to the selection on resize. Clicking blank paper focuses the document; the toolbar shows Editing while the text editor has focus, without adding a border around the text. Flowing mode remains white and has no pagination widgets. Oversized individual blocks are still not split across pages.
 
 After the up-to-date poll began skipping its redundant history read, one repeat of the same real Ablo workload converged in 46.829 seconds (12 clients, three authorities, 48 edits, 24 reconnects, 400 version conflicts, no transport recoveries). The earlier run took 64.327 seconds and recovered 12 unknown transport outcomes. These runs have different network/recovery timing; they do not isolate a causal speedup or establish an SLO. Contention still produces many retries.
+
+
+## Workspace access
+
+Use Members to invite a collaborator, accept a pending invitation, switch workspace or create one. Owners/admins can send or cancel invitations. A new account must choose or create a workspace before opening documents. Invitations initiated by production Forum return to its editor after shared Auth is registered with that route. An expired, canceled or wrong-recipient invitation grants no access. Auth failures keep the invitation form available for retry and never infer membership locally.
+
+Share copies a link for existing workspace members. All workspace members can access all its Forum documents, and the membership is shared across Ablo products. There are no public or document-specific grants. Removing someone through the shared Auth members interface revokes future access within the short authorization lease; it does not erase an offline copy already held on their device. Changing workspaces preserves pending drafts under the previous account scope.
+
+Run `npm run test:members` for the compiled members/onboarding UI with two simulated users and storage. `tests/members.test.ts` checks server trust boundaries, stale-workspace recovery and fresh workspace selection. Shared Auth release verification is maintained in that service's test documentation, not in the public Forum deployment setup.

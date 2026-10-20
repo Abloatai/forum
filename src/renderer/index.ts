@@ -1,3 +1,4 @@
+import {workspacePanel} from './workspace.js';
 import {chatPanel} from './chat.js';
 import {Editor, Extension} from '@tiptap/core';
 import {Step} from '@tiptap/pm/transform';
@@ -7,8 +8,10 @@ import {createPaginationPlugin,paginationPluginKey} from '../document/pagination
 
 declare global {interface Window {lobbyDocs: {
   browser?:boolean;
+  team?(input:Request):Promise<unknown>;
+  shareDocument?(id:string):Promise<void>;
   modelAccount?(action:'codex-status'|'codex-connect'|'codex-disconnect'):Promise<{connected:boolean;account?:{email:string;plan:string};login?:{verificationUrl:string;userCode:string;expiresAt:number};error?:string}>;
-  authState():Promise<{local:boolean;signedIn:boolean;name:string;pending:boolean;message:string;code:string}>;signIn():Promise<void>;signOut():Promise<void>;
+  authState():Promise<{local:boolean;signedIn:boolean;userId?:string;needsWorkspace?:boolean;name:string;pending:boolean;message:string;code:string}>;signIn():Promise<void>;signOut():Promise<void>;
   sendEmailCode?(email:string):Promise<void>;verifyEmailCode?(email:string,code:string):Promise<void>;
   list(): Promise<Snapshot[]>; create(title: string): Promise<Snapshot>; open(id: string): Promise<Draft>;
   request(input: Request): Promise<unknown>; saveDraft(draft: Draft): {ok: boolean; error?: string};
@@ -16,11 +19,13 @@ declare global {interface Window {lobbyDocs: {
 }}}
 const api = window.lobbyDocs;
 const chat = chatPanel(input => api.request(input), () => api.list());
+const members=workspacePanel(input=>api.team?api.team(input):Promise.reject(new Error('Team unavailable')));
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+let hosted=false;
 let editor: Editor | undefined, draft: Draft | undefined, base: Snapshot | undefined;
 let offline = false, syncing = false, opening = false, durable = true;
 let syncFinished=Promise.resolve();
-const error = (message: string) => {element('error').hidden = !message; element('error').textContent = message;};
+const error = (message: string) => {element('error').hidden = !message; element('error').textContent = message==='document_not_found'?'This document is not in your current workspace. Ask its owner for an invitation, or switch workspaces in Members.':message;};
 const status = (text: string) => {element('status').textContent = text;};
 function persist() {
   if (!editor || !draft || !base) return;
@@ -114,6 +119,7 @@ async function openDocument(id: string) {
     editor?.destroy(); draft = loaded; base = loaded.base; durable = true;
     document.body.classList.remove('overview');
     element('welcome').hidden = true; element('paper').hidden = false; element('toolbar').hidden = false;
+    element('share-document').hidden=!api.shareDocument||!hosted;
     element('title').textContent = base.title; chat.open(id); error('');
     editor = new Editor({element: element('editor'), extensions: [
       ...createTextEditorExtensions(),
@@ -159,7 +165,7 @@ element('new-document').onclick=async()=>{
 async function showDocuments(){
   if(!await prepareNavigation())return;
   editor?.destroy();editor=undefined;draft=undefined;base=undefined;chat.close();
-  document.body.classList.add('overview');element('welcome').hidden=false;element('paper').hidden=true;element('toolbar').hidden=true;element('title').textContent='Documents';error('');
+  element('share-document').hidden=true;document.body.classList.add('overview');element('welcome').hidden=false;element('paper').hidden=true;element('toolbar').hidden=true;element('title').textContent='Documents';error('');
   opening=false;void library().catch(e=>error(e.message));
 }
 element('home').onclick=showDocuments;element('documents-home').onclick=showDocuments;
@@ -169,9 +175,11 @@ element('document-layout').onchange=()=>{
   const select=element<HTMLSelectElement>('document-layout'),id=draft.id;select.disabled=true;
   void api.request({action:'layout',id,layout:select.value}).then(()=>sync()).catch(e=>{select.value=base?.layout??'page';error(e.message);}).finally(()=>{select.disabled=false;});
 };
+let onboardingChecked=false,onboarding=false,onboardingKey='';
 let emailSent=false,emailAddress='',emailBusy=false;
 async function authView(){
   const auth=await api.authState(),required=!auth.local&&!auth.signedIn;
+  hosted=!auth.local;
   element('sign-in').hidden=!required;
   document.body.classList.toggle('signed-out',required);
   element('sign-in-title').textContent=emailSent?'Check your inbox':'Welcome to Forum';
@@ -180,9 +188,14 @@ async function authView(){
   element('email-sign-in').hidden=!!api.browser||auth.pending&&!emailBusy;
   element('email-form').hidden=emailSent;element('code-form').hidden=!emailSent;
   element('sign-in-status').textContent=[auth.message,auth.code].filter(Boolean).join(' ');
+  element('members-button').hidden=auth.local||!api.team||required;
   element('codex-account').hidden=auth.local||!api.modelAccount;
   element('account').hidden=auth.local||required;
   element('account').textContent=auth.name.trim().slice(0,1).toUpperCase();element('account-name').textContent=auth.name;
+  if(auth.signedIn&&!auth.local&&auth.userId&&!onboardingChecked){onboardingChecked=true;onboardingKey='forum:onboarding:'+auth.userId;
+    if(auth.needsWorkspace||api.browser&&new URL(location.href).searchParams.has('invitation'))members.open(!!auth.needsWorkspace);
+    else if(api.modelAccount&&localStorage.getItem(onboardingKey)!=='done'){const state=await api.modelAccount('codex-status').catch(()=>undefined);if(state?.connected){try{localStorage.setItem(onboardingKey,'done');}catch{}return !required;}onboarding=true;element('codex-title').textContent='Write with people and agents';element('codex-skip').hidden=false;element<HTMLDialogElement>('codex-dialog').showModal();void codexView();}
+  }
   return !required;
 }
 element('email-form').onsubmit=event=>{
@@ -198,7 +211,7 @@ element('change-email').onclick=()=>{emailSent=false;void authView();};
 element('sign-in-button').onclick=()=>{void api.authState().then(auth=>auth.pending?api.signOut():api.signIn()).then(authView);};
 element('account').onclick=()=>{const menu=element('account-menu');menu.hidden=!menu.hidden;element('account').setAttribute('aria-expanded',String(!menu.hidden));};
 element('sign-out').onclick=()=>{persist();void api.signOut();};
-void authView().then(ready=>{if(ready)return library();}).catch(e=>error(e.message)).finally(()=>document.body.classList.remove('booting'));
+void authView().then(async ready=>{if(ready){await library();if(api.browser){const id=new URL(location.href).searchParams.get('document');if(id&&/^[a-zA-Z0-9-]{1,80}$/.test(id))await openDocument(id);}}}).catch(e=>error(e.message)).finally(()=>document.body.classList.remove('booting'));
 setInterval(()=>void authView(),1000);
 setInterval(() => void sync(), 250);
 
@@ -207,6 +220,7 @@ async function codexView(action:'codex-status'|'codex-connect'|'codex-disconnect
  if(codexBusy||!api.modelAccount)return;codexBusy=true;
  const connect=element<HTMLButtonElement>('codex-connect');connect.disabled=true;
  try{const state=await api.modelAccount(action);
+  element('codex-continue').hidden=!onboarding||!state.connected;
   element('codex-description').textContent=state.connected?`Connected as ${state.account?.email??'your account'}. Uses your ChatGPT plan.`:'Connect your own ChatGPT account to use agents. Your plan covers your requests.';
   element('codex-status').textContent=state.error??(state.login?'Approve the sign-in in your browser.':'');
   element('codex-code').textContent=state.login?.userCode??'';
@@ -216,7 +230,12 @@ async function codexView(action:'codex-status'|'codex-connect'|'codex-disconnect
  finally{codexBusy=false;connect.disabled=false;}
 }
 element('codex-account').onclick=()=>{element<HTMLDialogElement>('codex-dialog').showModal();void codexView();};
-element('codex-close').onclick=()=>element<HTMLDialogElement>('codex-dialog').close();
+function finishOnboarding(){if(onboardingKey)try{localStorage.setItem(onboardingKey,'done');}catch{}onboarding=false;element('codex-skip').hidden=true;element('codex-continue').hidden=true;element('codex-title').textContent='Your Codex account';element<HTMLDialogElement>('codex-dialog').close();}
+element('codex-close').onclick=finishOnboarding;
+element('codex-skip').onclick=finishOnboarding;element('codex-continue').onclick=finishOnboarding;
+element('codex-dialog').addEventListener('cancel',()=>{if(onboarding)finishOnboarding();});
+element('members-button').onclick=()=>members.open();
+element('share-document').onclick=()=>{if(!draft)return;persist();void api.shareDocument?.(draft.id).then(()=>{element('share-document').textContent='Link copied';setTimeout(()=>{element('share-document').textContent='Share';},1800);}).catch(()=>error('Could not copy the document link.'));};
 element('codex-connect').onclick=()=>{void codexView('codex-connect');};
 element('codex-disconnect').onclick=()=>{void codexView('codex-disconnect');};
 setInterval(()=>{if(element<HTMLDialogElement>('codex-dialog').open)void codexView();},2000);

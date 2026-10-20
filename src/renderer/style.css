@@ -184,3 +184,26 @@ body[data-layout=page] #paper {background:repeating-linear-gradient(to bottom,#f
 #writing-focus {visibility:hidden;font-size:12px;color:var(--muted-foreground);margin-left:auto;}
 main:has(.tiptap:focus) #writing-focus {visibility:visible;}
 .tiptap {caret-color:#171717;}
+
+#members-dialog {width:min(600px,calc(100vw - 40px));max-height:85vh;overflow:auto;padding:28px;border:1px solid var(--border);border-radius:12px;background:var(--background);color:var(--foreground);}
+#members-dialog::backdrop {background:#0004;}
+#members-dialog h2 {font-size:20px;margin:0 0 16px;}
+#members-dialog p {font-size:13px;line-height:1.5;color:var(--muted-foreground);}
+#members-close {float:right;font-size:22px;}
+#members-dialog form {display:flex;align-items:center;gap:12px;margin:16px 0;}
+#members-dialog input,#workspace-select {flex:1;min-width:0;padding:10px;border:0;border-radius:6px;background:var(--muted);color:var(--foreground);font:inherit;}
+#members-dialog button {padding:7px 10px;}
+.member-row,.invitation-row {display:flex;align-items:center;gap:12px;padding:12px 0;font-size:13px;}
+.member-row {flex-wrap:wrap;}
+.member-row strong {font-weight:500;}
+.member-row span {flex:1;color:var(--muted-foreground);}
+.member-row small,.invitation-row small {color:var(--muted-foreground);}
+.invitation-row span {flex:1;}
+#members-dialog details {margin-top:20px;font-size:13px;}
+#members-button {margin-left:auto;font-size:12px;}
+#share-document {font-size:12px;}
+
+body.booting #codex-dialog {visibility:hidden;}
+body.booting #codex-dialog::backdrop {background:transparent;}
+
+.workspace-header:has(#members-button:not([hidden])) .account {margin-left:8px;}

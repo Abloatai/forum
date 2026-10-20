@@ -48,7 +48,7 @@ sign-in flow.
 Type `/agent` to ask an agent, `/model` to change models, or `/team` to send a
 message to people. You can stop agents while keeping the edits they've made.
 
-On hosted Forum, connect your own ChatGPT account under Account → Codex account.
+On hosted Forum, connect your own ChatGPT account during setup or under Account → Codex account.
 Agent requests use your plan. You can also run a local Codex executable; provider
 adapters remain available for explicit server setups. See [the operations doc](docs/operations.md).
 
@@ -70,8 +70,8 @@ the Mac app.
 ## Status
 
 This is a preview. The Mac download is for Apple Silicon and has no automatic
-updater. Everyone in a workspace shares its documents. Member invitations and
-per-document permissions are still unfinished.
+updater. Invite collaborators from Members, then copy a document link with Share.
+Everyone in a workspace can access its documents; there are no per-document permissions.
 
 [Issues and feedback](https://github.com/Abloatai/forum/issues) are welcome.
 

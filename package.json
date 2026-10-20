@@ -1,6 +1,6 @@
 {
   "name": "forum",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "private": true,
   "description": "Multiplayer documents with Ablo and Tiptap",
   "author": "Ablo",
@@ -28,6 +28,7 @@
     "test:agents:browser": "npm run build && node --import tsx tests/hosted-agent-browser.mts",
     "test:coverage": "node --import tsx --experimental-test-coverage --test --test-coverage-include=\"src/**/*.ts\" --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=80 tests/*.test.ts",
     "test:concurrency:live": "node --import tsx tests/concurrency-live.mts",
+    "test:members": "npm run build && node --import tsx tests/members-browser.mts",
     "test:pages": "npm run build && node --import tsx tests/paged-editor.mts"
   },
   "devDependencies": {

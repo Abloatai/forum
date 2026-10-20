@@ -15,7 +15,7 @@ async function authState(){
     checking??=(async()=>{
       try{
         const session=await rpc({action:'session'}),next=session.identity as Identity;
-        if(!next||!next.userId||!next.organizationId||next.workspace!==next.organizationId||typeof session.workspace!=='string')throw new Error('Invalid session');
+        if(!next||!next.userId||next.workspace!==next.organizationId||typeof session.workspace!=='string'||(!next.organizationId&&session.needsWorkspace!==true))throw new Error('Invalid session');
         const nextScope=[session.workspace,next.organizationId,next.userId].map(encodeURIComponent).join(':');
         if(checked&&(!identity||scope!==nextScope)){popup?.close();location.reload();return;}
         identity=next;scope=nextScope;drafts??=browserDrafts(scope);message='';
@@ -24,10 +24,12 @@ async function authState(){
     })();
     await checking;
   }
-  return {local:false,signedIn:!!identity,name:identity?.name??'',pending:false,message,code:''};
+  return {local:false,signedIn:!!identity,userId:identity?.userId,needsWorkspace:!!identity&&!identity.organizationId,name:identity?.name??'',pending:false,message,code:''};
 }
 window.lobbyDocs={
   browser:true,authState,
+  async shareDocument(id){if(!/^[a-zA-Z0-9-]{1,80}$/.test(id))throw new Error('Invalid document');await navigator.clipboard.writeText(location.origin+'/app/?document='+encodeURIComponent(id));},
+  async team(input){const result=(await rpc(input)).result;if(['team-create','team-accept','team-switch'].includes(input.action)){const url=new URL(location.href);url.searchParams.delete('invitation');location.replace(url.href);}return result;},
   async modelAccount(action){return (await rpc({action})).result;},
   async signIn(){
     if(popup&&!popup.closed){popup.focus();return;}
@@ -45,7 +47,7 @@ window.lobbyDocs={
       if(!response.ok)throw new Error('Sign-out failed');location.reload();
     }catch{const error=document.getElementById('error')!;error.hidden=false;error.textContent='Could not sign out. Please try again.';}
   },
-  async list(){return identity?(await rpc({action:'list'})).result:[];},
+  async list(){return identity?.organizationId?(await rpc({action:'list'})).result:[];},
   async create(title:string){return (await rpc({action:'create',id:crypto.randomUUID(),title})).result;},
   async open(id:string){
     const base=(await rpc({action:'open',id})).result as Snapshot;

@@ -1,4 +1,4 @@
-import {app, BrowserWindow, ipcMain, session, dialog, safeStorage, shell} from 'electron';
+import {app, BrowserWindow, ipcMain, session, dialog, safeStorage, shell,clipboard} from 'electron';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {createHash,randomBytes, randomUUID} from 'node:crypto';
@@ -27,7 +27,7 @@ function resetIdentity(value?:Session){
   generation++;login?.abort();login=undefined;native.cancel();signedIn=value;
   for(const state of windows.values()){state.bridge.close();state.draft=undefined;}
   drafts?.close();drafts=undefined;
-  if(value){saved?.save(value);openDrafts(`${site}:${value.identity.organizationId}:${value.identity.userId}`);}else saved?.clear();
+  if(value){saved?.save(value);if(value.identity.organizationId)openDrafts(`${site}:${value.identity.organizationId}:${value.identity.userId}`);}else saved?.clear();
   for(const state of windows.values()){state.bridge=workspaceBridge();state.window.webContents.reload();}
 }
 async function acceptSession(token:string,controller:AbortController){
@@ -91,7 +91,7 @@ if (locked) void app.whenReady().then(async () => {
       catch{signedIn=undefined;authMessage='Sign in to reconnect to your workspace.';}
     }
   }
-  ipcMain.handle('docs:auth-state',event=>{sender(event);return {local,signedIn:!!signedIn,name:signedIn?.identity.name??'',pending:!!login,message:authMessage,code:''};});
+  ipcMain.handle('docs:auth-state',event=>{sender(event);return {local,signedIn:!!signedIn,userId:signedIn?.identity.userId,needsWorkspace:!!signedIn&&!signedIn.identity.organizationId,name:signedIn?.identity.name??'',pending:!!login,message:authMessage,code:''};});
   ipcMain.handle('docs:sign-in',event=>{
     sender(event);if(local||login)return;
     const controller=new AbortController();login=controller;authMessage='Continue with Google in your browser.';
@@ -121,6 +121,7 @@ if (locked) void app.whenReady().then(async () => {
   session.defaultSession.setPermissionCheckHandler(() => false);
   ipcMain.handle('docs:list', async event => {
     const state = sender(event);
+    if(!local&&!signedIn?.identity.organizationId)return [];
     try {return await state.bridge.request({action: 'list'});} catch {
       return drafts?.prepare('SELECT value FROM drafts').all().map(row => JSON.parse(row.value as string).base)??[];
     }
@@ -137,6 +138,8 @@ if (locked) void app.whenReady().then(async () => {
     state.draft = draft;
     return draft;
   });
+  ipcMain.handle('docs:share-document',(event,id:unknown)=>{const state=sender(event);if(local)throw new Error('Share hosted documents');identifier(id);if(state.draft?.id!==id)throw new Error('Invalid document');clipboard.writeText(site+'/app/?document='+encodeURIComponent(id));});
+  ipcMain.handle('docs:team',async(event,input:Request)=>{const state=sender(event);if(!input||!['team-state','team-create','team-accept','team-switch','team-invite','team-cancel'].includes(input.action))throw new Error('Invalid team request');const result=await state.bridge.request(input);if(['team-create','team-accept','team-switch'].includes(input.action)&&signedIn){const response=await workspaceClient(site,()=>signedIn?.token,()=>resetIdentity())({action:'session'});resetIdentity({token:signedIn.token,identity:response.identity});}return result;});
   ipcMain.handle('docs:model-account',async(event,action:unknown)=>{const state=sender(event);if(!['codex-status','codex-connect','codex-disconnect'].includes(String(action)))throw new Error('Invalid account request');const response=await state.bridge.request({action:String(action)});return response;});
   ipcMain.handle('docs:request', async (event, input: Request) => {
     const state = sender(event);

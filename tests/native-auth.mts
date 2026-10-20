@@ -10,8 +10,14 @@ import {openAuthority,clients} from './fixtures/authority.js';
 import {randomUUID} from 'node:crypto';
 import {markdownReply,checkMarkdown} from './fixtures/markdown.js';
 const profile=await mkdtemp(join(tmpdir(),'forum-native-auth-'));
-const identity={userId:'synthetic-member',organizationId:'synthetic-team',workspace:'synthetic-team',name:'Sample member'};
-const service=hostedService({verify:async token=>{if(token!=='synthetic-session')throw new Error('auth_required');return identity;},authority:workspace=>openAuthority(profile,undefined,workspace)});
+let identity={userId:'synthetic-member',organizationId:'',workspace:'',name:'Sample member'};
+const service=hostedService({verify:async token=>{if(token!=='synthetic-session')throw new Error('auth_required');return identity;},teamFetch:async(input)=>{
+ const path=new URL(String(input)).pathname.split('/').at(-1);
+ if(path==='list'||path==='list-user-invitations')return Response.json([]);
+ if(path==='create')return Response.json({id:'synthetic-team'});
+ if(path==='set-active'){identity={...identity,organizationId:'synthetic-team',workspace:'synthetic-team'};return Response.json({ok:true});}
+ throw new Error('Unexpected native fixture Auth request');
+},authority:workspace=>openAuthority(profile,undefined,workspace)});
 const server=createServer(async(req,res)=>{
   const chunks:Buffer[]=[];for await(const chunk of req)chunks.push(Buffer.from(chunk));
   const response=await service(new Request('http://127.0.0.1/api/rpc',{method:req.method,headers:req.headers as Record<string,string>,body:Buffer.concat(chunks)}));
@@ -49,7 +55,12 @@ try{
   const started=new URL((await app!.evaluate(()=>(globalThis as any).opened)).at(-1));
   const callback='com.ablo.forum://auth/callback#token='+Buffer.from(JSON.stringify({state:started.searchParams.get('state'),identifier:'s'.repeat(32)})).toString('base64url');
   await app!.evaluate(({app},url)=>{app.emit('open-url',{preventDefault(){}},url);},callback);
+  await page.getByText('Choose a workspace',{exact:true}).waitFor();
+  assert.equal((await page.evaluate(()=>window.lobbyDocs.authState())).signedIn,true);
+  assert.deepEqual(await page.evaluate(()=>window.lobbyDocs.list()),[]);
+  await page.locator('#workspace-name').fill('Sample native workspace');await page.locator('#create-workspace-form button').click();
   await page.getByRole('button',{name:'New document',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Write without agents',exact:true}).click();
   assert.equal((await app!.evaluate(()=>(globalThis as any).exchanges)).length,1);
   await app!.evaluate(({shell})=>{const state=globalThis as any;globalThis.fetch=state.savedFetch;shell.openExternal=state.savedOpen;});
   const encrypted=await app!.evaluate(({safeStorage},value)=>safeStorage.encryptString(JSON.stringify(value)).toString('base64'),{binding:site,token:'synthetic-session',identity});
@@ -59,6 +70,8 @@ try{
   const editor=page.locator('.tiptap');await editor.pressSequentially('A synthetic sign-in check.');
   await page.waitForFunction(()=>document.getElementById('status')?.textContent==='Synced');
   const documentID=await page.locator('#library [aria-current="true"]').getAttribute('data-document-id');assert.ok(documentID);
+  await page.getByRole('button',{name:'Share',exact:true}).click();
+  assert.equal(await app!.evaluate(({clipboard})=>clipboard.readText()),site+'/app/?document='+documentID);
   await clients(profile).get('fixture-seed').commits.create({operations:[['tool','read_document completed','Agent a1b2'],['assistant',markdownReply,'Agent a1b2'],['assistant','**Earlier reply**.','Codex c3d4']].map(([kind,text,author])=>({action:'create' as const,model:'forumMessages',id:randomUUID(),data:{document:documentID,author,kind,text,sender:'',intent:'',time:Date.now()}})),idempotencyKey:randomUUID(),wait:'confirmed'});
   await checkMarkdown(page);
   await app!.evaluate(({shell})=>{const state=globalThis as any;state.markdownOpen=shell.openExternal;state.markdownLinks=[];shell.openExternal=async url=>{state.markdownLinks.push(url);};});
@@ -89,5 +102,5 @@ try{
   await page.getByRole('textbox',{name:'Email sign-in code',exact:true}).fill('123456');await page.getByRole('button',{name:'Verify code',exact:true}).click();
   await page.getByRole('button',{name:'New document',exact:true}).waitFor();
   assert.equal((await app!.evaluate(()=>(globalThis as any).emailRequests)).filter((request:any)=>request.url.endsWith('send-verification-otp')).length,1);
-  console.log('PASS: native Google/email controls, one Google launch, S256 code exchange, email code retry, OS-encrypted session restore, document editing, restart, Streamdown Markdown, hidden agent IDs, safe external links and sign-out. Explicit simulated issuer and in-memory Ablo authority; no real browser or email opened.');
+  console.log('PASS: native Google/email controls, one Google launch, S256 code exchange, new-account workspace creation, optional personal Codex onboarding, clipboard document link, email code retry, OS-encrypted session restore, document editing, restart, Streamdown Markdown, hidden agent IDs, safe external links and sign-out. Explicit simulated issuer and in-memory Ablo authority; no real browser or email opened.');
 }finally{await app?.close();await new Promise<void>(resolve=>server.close(()=>resolve()));await rm(profile,{recursive:true,force:true});}
