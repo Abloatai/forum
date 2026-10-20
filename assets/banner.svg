@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="240" viewBox="0 0 760 240" role="img" aria-labelledby="title">
+  <title id="title">Forum</title>
+  <rect width="760" height="240" fill="#fafafa"/>
+  <svg x="190" y="68" width="104" height="104" viewBox="0 0 64 64">
+    <path fill="#111111" d="M14 54V12C27 8 40 8 53 11V21C43 18 34 18 24 20V31C32 29 40 29 47 31V41C39 39 32 39 24 41V54Z"/>
+  </svg>
+  <text x="316" y="150" fill="#111111" font-family="Arial, Helvetica, sans-serif" font-size="84" letter-spacing="-3">Forum</text>
+</svg>

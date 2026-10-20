@@ -1,56 +1,98 @@
-# Forum
+<p align="center">
+  <a href="https://forum.abloatai.com"><img src="assets/banner.svg" alt="Forum" width="480" /></a>
+</p>
 
-A multiplayer document editor for the browser and Mac, built with Tiptap and hosted Ablo. People in the same Ablo workspace share documents and chat. Local drafts keep pending edits safe. The application can also run locally with your own Ablo project.
+<p align="center">
+  <strong>A shared place to write, with people and agents.</strong>
+</p>
 
-## Mac app
+<p align="center">
+  <a href="https://forum.abloatai.com/app/">Open Forum</a> &nbsp;|&nbsp;
+  <a href="https://forum.abloatai.com">Download for Mac</a> &nbsp;|&nbsp;
+  <a href="#run-locally">Run locally</a> &nbsp;|&nbsp;
+  <a href="docs/architecture.md">Docs</a>
+</p>
 
-Open [Forum](https://forum.abloatai.com/app/) in your browser to reuse your Ablo session, or download the Apple Silicon preview. The updated native sign-in screen offers **Continue with Google** and **Continue with email**. Google returns through a secure browser-to-app handoff; email uses a six-digit code. This flow requires the Forum frontend and callback scheme to be registered with hosted Ablo Auth. Forum stores native sessions encrypted with the OS keychain and restores them after restart. Project keys are never bundled or requested by this edition.
+---
 
-## Run from source
+Forum is a multiplayer document editor for the browser and desktop, built with
+[Tiptap](https://tiptap.dev) and [Ablo](https://github.com/Abloatai/ablo).
+Write together, talk beside the document, and let agents work in the same text.
 
-Use Node 24 and a supported desktop OS. Create/select a **separate development project** in Ablo; do not point the Forum schema at an existing application project. Prepare its development branch with the Ablo CLI:
+- **Write together.** People and agents share documents and conversation across the workspace.
+- **Make room for the work.** Choose paper pages or a flowing document, with shared paper sizes and margins.
+- **Bring your models.** Hosted agents support Anthropic or a model gateway; local agents use an installed Codex executable.
+- **Keep your place.** Pending edits stay on your device and recover after a disconnect or restart.
+
+[Open Forum](https://forum.abloatai.com/app/) with your Ablo account, or
+[download the Apple Silicon Mac preview](https://forum.abloatai.com).
+The preview has no automatic updater yet.
+
+## How edits stay in sync
+
+Human editors rebase ProseMirror steps using operational transformation (OT).
+Agent tools read a version, then commit through Ablo with captured-read guards;
+stale edits are rejected so the agent can reread and retry. Document content,
+steps and retry receipts commit together. This is OT with optimistic concurrency,
+not a CRDT or an exclusive document lock.
+
+## Run locally
+
+Use **Node.js 24 or later** and your own **hosted Ablo development project**.
+Create a separate project for Forum; applying its schema to an existing
+application project can affect that application's data model.
 
 ```sh
+git clone https://github.com/Abloatai/forum.git
+cd forum
 npm ci
 npx --package @abloatai/cli@0.66.16 ablo login --project YOUR_PROJECT
 npx --package @abloatai/cli@0.66.16 ablo dev --branch forum-local --schema src/ablo/schema.ts --no-watch
 npm start
 ```
 
-`ablo dev` writes the temporary branch key into ignored `.env.local`. The project must have its Ablo data plane ready for this schema; follow the CLI’s readiness instructions if necessary. Forum always uses hosted Ablo; the document application is what runs locally or on infrastructure you control. No Ablo backend is bundled. The app keeps the key and short-lived human/agent sessions in its native process; neither renderer nor model subprocess receives them. Rotate an expired branch key by rerunning `ablo dev`.
+`ablo dev` prepares the branch and writes its temporary key to ignored
+`.env.local`. Follow the CLI's data-plane readiness instructions if prompted;
+rerun `ablo dev` when the key expires. Developers on the same Ablo branch share
+the same documents and chat.
 
-Two developers connecting the same development branch see the same documents and conversation. Each runs their own local application. Never share keys in chat or commit `.env.local`.
+**You can host the Forum application yourself. Ablo always stays hosted.**
+No Ablo backend, service credentials or production deployment infrastructure
+are included. Without a development key, the app uses Forum's hosted sign-in.
 
-Without `ABLO_API_KEY`, the native app uses the hosted sign-in flow. For a self-hosted Forum API, `FORUM_API_URL` selects its HTTPS origin (loopback HTTP is accepted for local development). The identity authority and data service remain hosted Ablo. `src/hosted/index.ts` owns account validation and workspace isolation; deployment infrastructure is intentionally maintained separately.
+## Agents
 
-The document overview and collapsible sidebar organize your work. The new-document icon opens **Untitled** immediately. Start the app again to open another window. Choose **Pages** or **Flowing** in the formatting toolbar. Pages fit the window; both modes keep a white text surface. Paper size and margins are shared document settings.
+Use `/agent` to work with an agent, `/model` to choose an available model, and
+`/team` to send a message to people. Agent edits use the same document authority
+as human edits. Stale edits must reread before retrying; stopping an agent keeps
+changes already accepted.
 
-The composer supports `/agent`, `/team`, `/model`, `@` participant references and `#` document references. References are text only. Agent activity is expandable; status sits above the composer. Disconnect and restart recovery happen automatically.
+See [agent setup and local operation](docs/operations.md) for local executable
+configuration, and [architecture](docs/architecture.md#agents-and-chat) for
+hosted provider configuration and limits.
 
-## Optional local agent
-
-Set `LOBBY_DOCS_AGENT_COMMAND` and `LOBBY_DOCS_AGENT_HOME` in `.env.local` to absolute paths for an installed Codex executable and a dedicated, provisioned profile. No profile or credentials are included. `/model` uses that executable’s model catalog. Agents can edit text, name documents and configure paper. Multiple agents can work on one document, with up to four runs per application instance. Stale edits must reread before retrying. **Stop agents** stops the document’s active runs and retains accepted edits.
-
-The hosted runner uses the same tools through the AI SDK, supporting direct Anthropic or a provider-neutral gateway. Offline tests use explicitly labeled scripted or mock models. The separate `test:agents:live` command requires a disposable Ablo test branch, server-side provider configuration and a private trace directory. Rich-text undo/redo uses ProseMirror history and commits through Ablo; it is not Decks’ `useUndoScope` and does not survive app restarts.
-
-## Check and package
+## Development
 
 ```sh
 npm run check
 npm test
-npm run test:integration
-npm run test:electron
-npm run test:auth
-npm run test:browser
-npm run test:desktop
-npm run test:site
-npm run make
+npm run build
 ```
 
-`npm test` runs unit checks with a clearly labeled in-memory authority contract double and skips the live SDK check unless `ABLO_API_KEY` is exported. `test:integration` and `test:electron` load `.env.local` and require a disposable development branch. They create synthetic documents and chat records there. On headless Linux, use `xvfb-run -a` for Electron. Forge produces a Mac ZIP. Publisher-provided signing identity and OS-keychain notarization profile enable signed, notarized builds without putting Apple credentials in source. The preview targets macOS Apple Silicon; automatic updates and Windows are not implemented.
+The default tests use labeled service doubles and skip the live Ablo check
+unless a project key is exported. Real-service checks write synthetic records:
+use a disposable branch. See [verification and recovery](docs/operations.md)
+for browser, Electron and live-agent checks. `npm run make` packages the Mac app;
+publisher signing credentials are separate.
 
-[Architecture](docs/architecture.md), [local recovery](docs/operations.md), [source provenance](docs/provenance.md), [source review](docs/source-sharing.md).
+## Contributing
+
+[Open an issue](https://github.com/Abloatai/forum/issues) or send a pull request.
+The current preview shares documents across a workspace; invitation controls
+and document-specific permissions are not implemented yet.
 
 ## License
 
-[MIT](LICENSE). Adapted sources and inherited notices are listed in [source provenance](docs/provenance.md). The Ablo SDK retains its own license; the hosted Ablo service is separate. No service credentials or deployment infrastructure are included.
+[MIT](LICENSE). See [source provenance](docs/provenance.md) for adapted sources
+and inherited notices. Dependencies retain their own licenses; the hosted Ablo
+service is separate.
