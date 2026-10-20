@@ -48,7 +48,7 @@ sign-in flow.
 Type `/agent` to ask an agent, `/model` to change models, or `/team` to send a
 message to people. You can stop agents while keeping the edits they've made.
 
-On hosted Forum, connect your own ChatGPT account during setup or under Account → Codex account.
+On hosted Forum, connect your own ChatGPT/Codex account during required first-time setup. Manage the connection later under Account → Codex account.
 Agent requests use your plan. You can also run a local Codex executable; provider
 adapters remain available for explicit server setups. See [the operations doc](docs/operations.md).
 

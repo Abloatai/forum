@@ -175,7 +175,7 @@ element('document-layout').onchange=()=>{
   const select=element<HTMLSelectElement>('document-layout'),id=draft.id;select.disabled=true;
   void api.request({action:'layout',id,layout:select.value}).then(()=>sync()).catch(e=>{select.value=base?.layout??'page';error(e.message);}).finally(()=>{select.disabled=false;});
 };
-let onboardingChecked=false,onboarding=false,onboardingKey='';
+let onboardingChecked=false,onboarding=false,onboardingKey='',codexConnected=false;
 let emailSent=false,emailAddress='',emailBusy=false;
 async function authView(){
   const auth=await api.authState(),required=!auth.local&&!auth.signedIn;
@@ -192,9 +192,9 @@ async function authView(){
   element('codex-account').hidden=auth.local||!api.modelAccount;
   element('account').hidden=auth.local||required;
   element('account').textContent=auth.name.trim().slice(0,1).toUpperCase();element('account-name').textContent=auth.name;
-  if(auth.signedIn&&!auth.local&&auth.userId&&!onboardingChecked){onboardingChecked=true;onboardingKey='forum:onboarding:'+auth.userId;
+  if(auth.signedIn&&!auth.local&&auth.userId&&!onboardingChecked){onboardingChecked=true;onboardingKey='forum:onboarding:codex:'+auth.userId;
     if(auth.needsWorkspace||api.browser&&new URL(location.href).searchParams.has('invitation'))members.open(!!auth.needsWorkspace);
-    else if(api.modelAccount&&localStorage.getItem(onboardingKey)!=='done'){const state=await api.modelAccount('codex-status').catch(()=>undefined);if(state?.connected){try{localStorage.setItem(onboardingKey,'done');}catch{}return !required;}onboarding=true;element('codex-title').textContent='Write with people and agents';element('codex-skip').hidden=false;element<HTMLDialogElement>('codex-dialog').showModal();void codexView();}
+    else if(api.modelAccount){let complete=false;try{complete=localStorage.getItem(onboardingKey)==='done';}catch{}if(!complete){const state=await api.modelAccount('codex-status').catch(()=>undefined);if(state?.connected){try{localStorage.setItem(onboardingKey,'done');}catch{}return !required;}onboarding=true;element('codex-title').textContent='Connect your Codex account';element('codex-close').hidden=true;element('codex-continue').hidden=false;element<HTMLDialogElement>('codex-dialog').showModal();void codexView();}}
   }
   return !required;
 }
@@ -219,8 +219,10 @@ let codexBusy=false;
 async function codexView(action:'codex-status'|'codex-connect'|'codex-disconnect'='codex-status'){
  if(codexBusy||!api.modelAccount)return;codexBusy=true;
  const connect=element<HTMLButtonElement>('codex-connect');connect.disabled=true;
+ codexConnected=false;element<HTMLButtonElement>('codex-continue').disabled=true;
  try{const state=await api.modelAccount(action);
-  element('codex-continue').hidden=!onboarding||!state.connected;
+  codexConnected=state.connected;element<HTMLButtonElement>('codex-continue').disabled=!state.connected;
+  element('codex-continue').hidden=!onboarding;
   element('codex-description').textContent=state.connected?`Connected as ${state.account?.email??'your account'}. Uses your ChatGPT plan.`:'Connect your own ChatGPT account to use agents. Your plan covers your requests.';
   element('codex-status').textContent=state.error??(state.login?'Approve the sign-in in your browser.':'');
   element('codex-code').textContent=state.login?.userCode??'';
@@ -230,10 +232,10 @@ async function codexView(action:'codex-status'|'codex-connect'|'codex-disconnect
  finally{codexBusy=false;connect.disabled=false;}
 }
 element('codex-account').onclick=()=>{element<HTMLDialogElement>('codex-dialog').showModal();void codexView();};
-function finishOnboarding(){if(onboardingKey)try{localStorage.setItem(onboardingKey,'done');}catch{}onboarding=false;element('codex-skip').hidden=true;element('codex-continue').hidden=true;element('codex-title').textContent='Your Codex account';element<HTMLDialogElement>('codex-dialog').close();}
+function finishOnboarding(){if(onboarding&&!codexConnected)return;if(onboarding&&onboardingKey)try{localStorage.setItem(onboardingKey,'done');}catch{}onboarding=false;element('codex-close').hidden=false;element('codex-continue').hidden=true;element('codex-title').textContent='Your Codex account';element<HTMLDialogElement>('codex-dialog').close();}
 element('codex-close').onclick=finishOnboarding;
-element('codex-skip').onclick=finishOnboarding;element('codex-continue').onclick=finishOnboarding;
-element('codex-dialog').addEventListener('cancel',()=>{if(onboarding)finishOnboarding();});
+element('codex-continue').onclick=finishOnboarding;
+element('codex-dialog').addEventListener('cancel',event=>{if(onboarding)event.preventDefault();});
 element('members-button').onclick=()=>members.open();
 element('share-document').onclick=()=>{if(!draft)return;persist();void api.shareDocument?.(draft.id).then(()=>{element('share-document').textContent='Link copied';setTimeout(()=>{element('share-document').textContent='Share';},1800);}).catch(()=>error('Could not copy the document link.'));};
 element('codex-connect').onclick=()=>{void codexView('codex-connect');};

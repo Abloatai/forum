@@ -6,12 +6,15 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import assert from 'node:assert/strict';
 import {hostedService} from '../src/hosted/index.js';
+import {connectedCodex} from './fixtures/codex.js';
 import {openAuthority,clients} from './fixtures/authority.js';
 import {randomUUID} from 'node:crypto';
 import {markdownReply,checkMarkdown} from './fixtures/markdown.js';
 const profile=await mkdtemp(join(tmpdir(),'forum-native-auth-'));
 let identity={userId:'synthetic-member',organizationId:'',workspace:'',name:'Sample member'};
-const service=hostedService({verify:async token=>{if(token!=='synthetic-session')throw new Error('auth_required');return identity;},teamFetch:async(input)=>{
+let connected=false;
+const codex={...connectedCodex,async request(user:string,action:string){if(action==='codex-connect')connected=true;return connected?connectedCodex.request(user,'codex-status'):{connected:false};}};
+const service=hostedService({codex,verify:async token=>{if(token!=='synthetic-session')throw new Error('auth_required');return identity;},teamFetch:async(input)=>{
  const path=new URL(String(input)).pathname.split('/').at(-1);
  if(path==='list'||path==='list-user-invitations')return Response.json([]);
  if(path==='create')return Response.json({id:'synthetic-team'});
@@ -60,7 +63,10 @@ try{
   assert.deepEqual(await page.evaluate(()=>window.lobbyDocs.list()),[]);
   await page.locator('#workspace-name').fill('Sample native workspace');await page.locator('#create-workspace-form button').click();
   await page.getByRole('button',{name:'New document',exact:true}).waitFor();
-  await page.getByRole('button',{name:'Write without agents',exact:true}).click();
+  await page.getByText('Connect your Codex account',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Continue to Forum',exact:true}).isDisabled(),true);
+  assert.equal(await page.locator('#codex-close').isVisible(),false);await page.keyboard.press('Escape');assert.equal(await page.locator('#codex-dialog').isVisible(),true);
+  await page.getByRole('button',{name:'Connect Codex',exact:true}).click();await page.getByRole('button',{name:'Continue to Forum',exact:true}).click();
   assert.equal((await app!.evaluate(()=>(globalThis as any).exchanges)).length,1);
   await app!.evaluate(({shell})=>{const state=globalThis as any;globalThis.fetch=state.savedFetch;shell.openExternal=state.savedOpen;});
   const encrypted=await app!.evaluate(({safeStorage},value)=>safeStorage.encryptString(JSON.stringify(value)).toString('base64'),{binding:site,token:'synthetic-session',identity});
@@ -102,5 +108,5 @@ try{
   await page.getByRole('textbox',{name:'Email sign-in code',exact:true}).fill('123456');await page.getByRole('button',{name:'Verify code',exact:true}).click();
   await page.getByRole('button',{name:'New document',exact:true}).waitFor();
   assert.equal((await app!.evaluate(()=>(globalThis as any).emailRequests)).filter((request:any)=>request.url.endsWith('send-verification-otp')).length,1);
-  console.log('PASS: native Google/email controls, one Google launch, S256 code exchange, new-account workspace creation, optional personal Codex onboarding, clipboard document link, email code retry, OS-encrypted session restore, document editing, restart, Streamdown Markdown, hidden agent IDs, safe external links and sign-out. Explicit simulated issuer and in-memory Ablo authority; no real browser or email opened.');
+  console.log('PASS: native Google/email controls, one Google launch, S256 code exchange, new-account workspace creation, required personal Codex setup and connected-account reuse, clipboard document link, email code retry, OS-encrypted session restore, document editing, restart, Streamdown Markdown, hidden agent IDs, safe external links and sign-out. Explicit simulated issuer and in-memory Ablo authority; no real browser or email opened.');
 }finally{await app?.close();await new Promise<void>(resolve=>server.close(()=>resolve()));await rm(profile,{recursive:true,force:true});}

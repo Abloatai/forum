@@ -6,6 +6,7 @@ import {resolve,extname} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {hostedService} from '../src/hosted/index.js';
+import {connectedCodex} from './fixtures/codex.js';
 import {openAuthority} from './fixtures/authority.js';
 const store=randomUUID();let origin='',revoked=false;
 // The service captures its allowed origin at construction, after the port is known.
@@ -24,7 +25,7 @@ const server=createServer(async(req,res)=>{
   }catch(error){console.error(error);res.writeHead(500).end();}
 });
 await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));origin=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
-handler=hostedService({browserOrigin:origin,verifyBrowser:async cookie=>{
+handler=hostedService({codex:connectedCodex,browserOrigin:origin,verifyBrowser:async cookie=>{
   if(cookie!=='better-auth.session_token=sample-session'||revoked)throw new Error('auth_required');
   return {userId:'sample-user',name:'Sample member',organizationId:'sample-team',workspace:'sample-team'};
 },authority:workspace=>openAuthority(store,undefined,workspace)});
@@ -56,7 +57,7 @@ try{
   assert.equal(await page.locator('.bootstrap-spinner').evaluate(node=>getComputedStyle(node).animationName),'none');
   releaseSession();await listStarted;
   assert.equal(await page.locator('#bootstrap').isVisible(),true,'Wait for the document list after authentication.');
-  releaseList();await page.getByRole('button',{name:'Write without agents',exact:true}).click();await page.getByRole('button',{name:'New document',exact:true}).click();
+  releaseList();await page.getByRole('button',{name:'New document',exact:true}).click();
   assert.equal(await page.locator('#bootstrap').isVisible(),false);
   const failed=await context.newPage();
   await failed.route('**/api/rpc',route=>route.request().postDataJSON().action==='list'?route.fulfill({status:503,json:{error:'Sample document list unavailable'}}):route.continue());
