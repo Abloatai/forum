@@ -18,7 +18,7 @@ export function clients(path:string):ReturnType<typeof actorClients>{
     rows.clear();for(const [key,value]of next)rows.set(key,value);
    }
    const client:Record<string,unknown>={commits:{create:commit},async dispose(){}};
-   for(const model of ['forumDocuments','forumSteps','forumReceipts','forumMessages','forumRuns'])client[model]={
+   for(const model of ['forumCodexConnections','forumDocuments','forumSteps','forumReceipts','forumMessages','forumRuns'])client[model]={
     async read({id}:{id:string}){const key=`${model}:${id}`,stored=rows.get(key);if(!stored)return null;const row=structuredClone(stored.row);evidence.set(row,{key,revision:stored.revision});return row;},
     async list({where={},orderBy={},limit=1000}:{where?:Record<string,unknown>|unknown[][];orderBy?:Record<string,string>;limit?:number}={}){
      const filters=Array.isArray(where)?where:Object.entries(where).map(([key,value])=>[key,'=',value]);
@@ -31,5 +31,5 @@ export function clients(path:string):ReturnType<typeof actorClients>{
   },
  };
 }
-export function openAuthority(path:string,agent?:AgentConfig,workspace='local'){return open(agent,clients(path),workspace);}
+export function openAuthority(path:string,agent?:Parameters<typeof open>[0],workspace='local'){return open(agent,clients(path),workspace);}
 export function startServer(options:Parameters<typeof start>[0]&{database:string}){const {database,...rest}=options;return start({...rest,clients:clients(database)});}

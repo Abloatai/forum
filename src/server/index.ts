@@ -11,7 +11,7 @@ function snapshot(row:{id:string;title:string;doc:string;version:number;layout:s
   return {id:row.id,title:row.title,doc:JSON.parse(row.doc),version:row.version,layout:row.layout as 'page'|'flow',paper:paperSettings(JSON.parse(row.paper))};
 }
 function stale(error:unknown){return !!error&&typeof error==='object'&&'code'in error&&error.code==='stale_context';}
-export function openAuthority(agent?:AgentConfig,clients=actorClients(),workspace='local'){
+export function openAuthority(agent?:AgentConfig|((actor:string)=>Promise<AgentConfig|undefined>),clients=actorClients(),workspace='local'){
   async function documentRequest(input:Request,client:Client,runID?:string):Promise<unknown>{
     validateRequest(input);
     if(input.action==='list')return (await client.forumDocuments.list({where:{workspace},limit:1000,orderBy:{time:'desc',id:'desc'}})).map(({id,title,version})=>({id,title,version}));
@@ -45,6 +45,7 @@ export function openAuthority(agent?:AgentConfig,clients=actorClients(),workspac
     if(!Number.isSafeInteger(input.version)||(input.version as number)<0||(input.version as number)>current.version)throw new Error('invalid_version');
     const from=input.version as number;
     if(input.action==='changes'){
+      if(from===current.version)return {title:row.title,layout:row.layout,paper:current.paper,version:from,steps:[],clientIDs:[]};
       const rows=await client.forumSteps.list({where:[['document','=',row.id],['version','>',from],['version','<=',current.version]],orderBy:{version:'asc'},limit:256});
       if(rows.some((step,index)=>step.version!==from+index+1))throw new Error('incomplete_history');
       return {title:row.title,layout:row.layout,paper:current.paper,version:from+rows.length,steps:rows.map(r=>JSON.parse(r.step)),clientIDs:rows.map(r=>r.client)};

@@ -137,6 +137,7 @@ if (locked) void app.whenReady().then(async () => {
     state.draft = draft;
     return draft;
   });
+  ipcMain.handle('docs:model-account',async(event,action:unknown)=>{const state=sender(event);if(!['codex-status','codex-connect','codex-disconnect'].includes(String(action)))throw new Error('Invalid account request');const response=await state.bridge.request({action:String(action)});return response;});
   ipcMain.handle('docs:request', async (event, input: Request) => {
     const state = sender(event);
     if (state.offline) throw new Error('Offline');

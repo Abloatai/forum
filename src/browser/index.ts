@@ -28,6 +28,7 @@ async function authState(){
 }
 window.lobbyDocs={
   browser:true,authState,
+  async modelAccount(action){return (await rpc({action})).result;},
   async signIn(){
     if(popup&&!popup.closed){popup.focus();return;}
     popup=window.open('about:blank','forum-sign-in','popup,width=540,height=740');

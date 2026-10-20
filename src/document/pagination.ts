@@ -350,6 +350,7 @@ function measureBlockFromDom(blockEl: HTMLElement): BlockMeasurement {
  */
 class BlockMeasurementCache {
   private cache = new Map<HTMLElement, BlockMeasurement>();
+  private nodes = new WeakMap<HTMLElement, PMNode>();
   private observer: ResizeObserver | null = null;
   /** Set on each recompute pass to track which entries are still alive. */
   private aliveThisPass: WeakSet<HTMLElement> = new WeakSet();
@@ -377,10 +378,11 @@ class BlockMeasurementCache {
   }
 
   /** Get a measurement, computing+caching+observing on cache miss. */
-  getOrMeasure(blockEl: HTMLElement): BlockMeasurement {
+  getOrMeasure(blockEl: HTMLElement,node:PMNode): BlockMeasurement {
     this.aliveThisPass.add(blockEl);
     const cached = this.cache.get(blockEl);
-    if (cached) return cached;
+    if (cached&&this.nodes.get(blockEl)===node) return cached;
+    this.nodes.set(blockEl,node);
     const measurement = measureBlockFromDom(blockEl);
     this.cache.set(blockEl, measurement);
     this.observer?.observe(blockEl);
@@ -424,7 +426,7 @@ function computePageBoundariesWithCache(
       // next attempt.
       return null;
     }
-    const measurement = cache.getOrMeasure(dom);
+    const measurement = cache.getOrMeasure(dom,child);
     blocks.push({ measurement, pos: position });
     position += child.nodeSize;
   }
@@ -566,6 +568,8 @@ export function createPaginationPlugin(opts: PaginationOptions): Plugin<Paginati
           // so it doesn't run inside a ProseMirror dispatch.
           queueMicrotask(() => opts.onPageCountChange?.(layout.pageCount));
         }
+        const previous=paginationPluginKey.getState(viewRef.state)?.layout;
+        if(previous&&JSON.stringify(previous)===JSON.stringify(layout))return;
         const decorations = buildDecorations(viewRef.state.doc, layout.boundaries);
         const newState: PaginationPluginState = { decorations, layout };
         const tr = viewRef.state.tr.setMeta(paginationPluginKey, newState);
@@ -654,6 +658,7 @@ export function createPaginationPlugin(opts: PaginationOptions): Plugin<Paginati
         void document.fonts.ready.then(() => {
           // Font load can change every block's height — clear the cache so
           // every block gets re-measured against the loaded fonts.
+          if(!viewRef)return;
           cache?.destroy();
           cache = new BlockMeasurementCache(scheduleMeasure);
           scheduleMeasure();

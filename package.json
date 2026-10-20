@@ -27,7 +27,8 @@
     "test:agents:live": "node --import tsx tests/hosted-agents-live.mts",
     "test:agents:browser": "npm run build && node --import tsx tests/hosted-agent-browser.mts",
     "test:coverage": "node --import tsx --experimental-test-coverage --test --test-coverage-include=\"src/**/*.ts\" --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=80 tests/*.test.ts",
-    "test:concurrency:live": "node --import tsx tests/concurrency-live.mts"
+    "test:concurrency:live": "node --import tsx tests/concurrency-live.mts",
+    "test:pages": "npm run build && node --import tsx tests/paged-editor.mts"
   },
   "devDependencies": {
     "@abloatai/ablo": "0.66.16",
@@ -35,6 +36,7 @@
     "@better-auth/electron": "1.6.23",
     "@electron-forge/cli": "8.0.0-alpha.9",
     "@electron-forge/maker-zip": "8.0.0-alpha.9",
+    "@openai/codex": "0.153.0",
     "@tiptap/core": "3.31.3",
     "@tiptap/extension-placeholder": "3.31.3",
     "@tiptap/pm": "3.31.3",

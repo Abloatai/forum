@@ -5,13 +5,14 @@ import {documentTool} from './tools.js';
 import {runAgent,type AgentConfig} from './cli.js';
 export {hostedAgentConfiguration} from './hosted.js';
 
-export function createChat(clients:ReturnType<typeof actorClients>,request:(input:Request,client:Client,runID?:string)=>Promise<unknown>,config?:AgentConfig){
+export function createChat(clients:ReturnType<typeof actorClients>,request:(input:Request,client:Client,runID?:string)=>Promise<unknown>,configuration?:AgentConfig|((actor:string)=>Promise<AgentConfig|undefined>)){
   const owner=randomUUID(),running=new Map<string,{document:string;controller:AbortController;done:Promise<void>}>();
   const members=new Map<string,Map<string,{time:number;name:string}>>();
   async function add(client:Client,document:string,author:string,kind:string,text:string){
     await commit(client,{operations:[{action:'create',model:'forumMessages',id:randomUUID(),data:{document,author,kind,text,sender:'',intent:'',time:Date.now()}}],idempotencyKey:randomUUID(),wait:'confirmed'});
   }
   async function chat(input:Request,client:Client,actor:string,name?:string,authorize=async()=>{}):Promise<unknown>{
+    const config=typeof configuration==='function'&&(input.action==='chat-state'||input.action==='chat-send'&&input.agent===true)?await configuration(actor):typeof configuration==='function'?undefined:configuration;
     identifier(input.id);identifier(input.clientID);await request({action:'open',id:input.id},client);
     const id=input.id,author=name??`Member ${input.clientID.slice(0,4)}`;
     if(input.action==='chat-state'){
@@ -37,7 +38,7 @@ export function createChat(clients:ReturnType<typeof actorClients>,request:(inpu
     if(input.agent&&running.size>=4)throw new Error('Four agents are already running in this app. Wait or stop a run.');
     const model=typeof input.model==='string'?input.model:config?.model??config?.models?.find(model=>model.isDefault)?.id??config?.models?.[0]?.id;
     if(!config?.scripted&&input.agent&&!model)throw new Error('model_catalog_unavailable');
-    if(model&&!config?.models?.some(item=>item.id===model))throw new Error('model_not_allowed');
+    if(input.agent&&model&&!config?.models?.some(item=>item.id===model))throw new Error('model_not_allowed');
     const runID=randomUUID(),label=`${config?.scripted?'Scripted test agent':config&&'provider'in config?'Agent':'Codex'} ${runID.slice(0,4)}`;
     try{await commit(client,{operations:[
       {action:'create',model:'forumMessages',id:input.messageID,data:{document:id,author,kind:'user',text:input.text.trim(),sender,intent,time:Date.now()}},
@@ -58,10 +59,10 @@ export function createChat(clients:ReturnType<typeof actorClients>,request:(inpu
         {action:'update',model:'forumRuns',id:runID,data:{status:'completed'}},
       ],reads:[run],idempotencyKey:`complete:${runID}`,wait:'confirmed'});
     })
-      .catch(async error=>{const run=await agentClient.forumRuns.read({id:runID}),stopped=controller.signal.aborted||run?.status==='stop_requested';await add(agentClient,id,label,'system',stopped?'Stopped. Edits already applied remain in the document.':config&&'provider'in config?'Agent could not finish. Confirmed edits remain in the document.':String(error.message));await agentClient.forumRuns.update({id:runID,data:{status:stopped?'stopped':'failed'}});})
+      .catch(async error=>{const run=await agentClient.forumRuns.read({id:runID}),stopped=controller.signal.aborted||run?.status==='stop_requested';await add(agentClient,id,label,'system',stopped?'Stopped. Edits already applied remain in the document.':config&&('provider'in config||'personal'in config)?'Agent could not finish. Confirmed edits remain in the document.':String(error.message));await agentClient.forumRuns.update({id:runID,data:{status:stopped?'stopped':'failed'}});})
       .catch(()=>{/* A revoked or unavailable project cannot accept further run updates. */})
       .finally(async()=>{clearInterval(timer);running.delete(runID);await clients.release(`agent-${runID}`);});
-    running.set(runID,{document:id,controller,done});if(config&&'provider'in config)config.waitUntil?.(done);return {ok:true};
+    running.set(runID,{document:id,controller,done});if(config&&('provider'in config||'personal'in config))config.waitUntil?.(done);return {ok:true};
   }
   return {request:chat,async close(){for(const run of running.values())run.controller.abort();await Promise.all([...running.values()].map(run=>run.done));}};
 }

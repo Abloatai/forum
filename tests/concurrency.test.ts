@@ -78,3 +78,10 @@ test('persistent contention has a finite retry budget and unrelated failures are
   await assert.rejects(commit(actor,request),{code});assert.equal(calls,1);
  }
 });
+
+test('an up-to-date poll returns shared metadata without reading OT history',async()=>{
+ const {clients}=await import('./fixtures/authority.js'),{openAuthority}=await import('../src/server/index.js');
+ const pool=clients(randomUUID()),get=pool.get;let historyReads=0;
+ pool.get=(...args)=>{const client=get(...args),list=client.forumSteps.list;client.forumSteps.list=(async(...input)=>{historyReads++;return list(...input);}) as typeof list;return client;};
+ const authority=openAuthority(undefined,pool),id=randomUUID();try{await authority.request({action:'create',id,title:'Metadata stays current'});const result=await authority.request({action:'changes',id,version:0}) as any;assert.equal(result.title,'Metadata stays current');assert.equal(result.version,0);assert.deepEqual(result.steps,[]);assert.deepEqual(result.clientIDs,[]);assert.equal(historyReads,0);}finally{await authority.close();}
+});

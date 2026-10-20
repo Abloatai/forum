@@ -13,10 +13,10 @@ export function safeModels(value:unknown,allowed?:string[]):Model[]{
   });
 }
 export async function discoverModels(config:AgentConfig):Promise<Model[]>{
-  if('provider'in config)return config.models;
+  if('provider'in config||'personal'in config)return config.models;
   // Scripted fixtures have no model provider and must not advertise invented models.
   if(config.scripted)return [];
-  const child=spawn(config.command,['--ignore-user-config','-c','analytics.enabled=false','app-server'],{cwd:config.home,stdio:['pipe','pipe','pipe'],env:{PATH:process.env.PATH??'',CODEX_HOME:config.home,LANG:'en_US.UTF-8'}});
+  const child=spawn(config.command,['-c','analytics.enabled=false','app-server'],{cwd:config.home,stdio:['pipe','pipe','pipe'],env:{PATH:process.env.PATH??'',CODEX_HOME:config.home,LANG:'en_US.UTF-8'}});
   const lines=createInterface({input:child.stdout});child.stderr.resume();child.stdin.on('error',()=>{});
   let count=0,next=0;const pending=new Map<number,{resolve:(value:unknown)=>void;reject:()=>void}>();
   const fail=()=>{for(const p of pending.values())p.reject();pending.clear();};

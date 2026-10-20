@@ -2,6 +2,7 @@ import {contextBridge, ipcRenderer} from 'electron';
 import type {Draft, Request} from '../document/index.js';
 // Explicit capability surface, adapted from Coding's isolated preload.
 contextBridge.exposeInMainWorld('lobbyDocs', {
+  modelAccount:(action:string)=>ipcRenderer.invoke('docs:model-account',action),
   authState:()=>ipcRenderer.invoke('docs:auth-state'),
   signIn:()=>ipcRenderer.invoke('docs:sign-in'),
   sendEmailCode:(email:string)=>ipcRenderer.invoke('docs:send-email-code',email),

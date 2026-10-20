@@ -48,8 +48,9 @@ sign-in flow.
 Type `/agent` to ask an agent, `/model` to change models, or `/team` to send a
 message to people. You can stop agents while keeping the edits they've made.
 
-The hosted runner supports Anthropic or a model gateway. You can also use a
-local Codex executable. Configuration is in [the operations doc](docs/operations.md).
+On hosted Forum, connect your own ChatGPT account under Account → Codex account.
+Agent requests use your plan. You can also run a local Codex executable; provider
+adapters remain available for explicit server setups. See [the operations doc](docs/operations.md).
 
 ## Development
 

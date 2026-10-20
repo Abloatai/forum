@@ -7,6 +7,7 @@ import {createPaginationPlugin,paginationPluginKey} from '../document/pagination
 
 declare global {interface Window {lobbyDocs: {
   browser?:boolean;
+  modelAccount?(action:'codex-status'|'codex-connect'|'codex-disconnect'):Promise<{connected:boolean;account?:{email:string;plan:string};login?:{verificationUrl:string;userCode:string;expiresAt:number};error?:string}>;
   authState():Promise<{local:boolean;signedIn:boolean;name:string;pending:boolean;message:string;code:string}>;signIn():Promise<void>;signOut():Promise<void>;
   sendEmailCode?(email:string):Promise<void>;verifyEmailCode?(email:string,code:string):Promise<void>;
   list(): Promise<Snapshot[]>; create(title: string): Promise<Snapshot>; open(id: string): Promise<Draft>;
@@ -38,14 +39,14 @@ function fitPaper(){
   const layout=base.layout??'page',paper=base.paper??defaultPaper,canvas=element('canvas'),surface=element('paper');
   const cs=getComputedStyle(canvas),available=Math.max(1,canvas.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight));
   const zoom=layout==='page'?Math.min(1,available/paper.width,Math.max(1,canvas.clientHeight-48)/paper.height):1;
-  const signature=JSON.stringify([layout,paper,zoom]);if(signature===paperSignature)return;paperSignature=signature;
-  surface.style.zoom=String(zoom);surface.style.width=layout==='page'?`${paper.width}px`:'100%';
+  const signature=JSON.stringify([layout,paper]);
+  surface.style.zoom=String(zoom);if(signature===paperSignature)return;paperSignature=signature;
+  surface.style.setProperty('--page-height',`${paper.height}px`);surface.style.width=layout==='page'?`${paper.width}px`:'100%';
   surface.style.maxWidth=layout==='page'?'none':'900px';surface.style.minHeight=layout==='page'?`${paper.height}px`:'0';
   surface.style.padding=layout==='page'?`${paper.marginTop}px ${paper.marginRight}px ${paper.marginBottom}px ${paper.marginLeft}px`:`${paper.marginTop}px min(8%, ${paper.marginRight}px) ${paper.marginBottom}px min(8%, ${paper.marginLeft}px)`;
   editor.view.dom.style.minHeight=layout==='page'?`${paper.height-paper.marginTop-paper.marginBottom}px`:'calc(100vh - 260px)';
   editor.unregisterPlugin(paginationPluginKey);
-  if(layout==='page')editor.registerPlugin(createPaginationPlugin({pageHeight:paper.height,pageMarginTop:paper.marginTop,pageMarginBottom:paper.marginBottom,pageGap:32,contentWidth:paper.width-paper.marginLeft-paper.marginRight,onPageCountChange:count=>{element('page-count').textContent=`${count} ${count===1?'page':'pages'}`;}}));
-  requestAnimationFrame(()=>editor?.commands.scrollIntoView());
+  if(layout==='page')editor.registerPlugin(createPaginationPlugin({pageHeight:paper.height,pageMarginTop:paper.marginTop,pageMarginBottom:paper.marginBottom,pageGap:32,contentWidth:paper.width-paper.marginLeft-paper.marginRight,onPageCountChange:count=>{surface.style.minHeight=`${count*paper.height+(count-1)*32}px`;element('page-count').textContent=`${count} ${count===1?'page':'pages'}`;}}));
 }
 new ResizeObserver(fitPaper).observe(element('canvas'));
 function documentLayout(layout:'page'|'flow'){
@@ -179,6 +180,7 @@ async function authView(){
   element('email-sign-in').hidden=!!api.browser||auth.pending&&!emailBusy;
   element('email-form').hidden=emailSent;element('code-form').hidden=!emailSent;
   element('sign-in-status').textContent=[auth.message,auth.code].filter(Boolean).join(' ');
+  element('codex-account').hidden=auth.local||!api.modelAccount;
   element('account').hidden=auth.local||required;
   element('account').textContent=auth.name.trim().slice(0,1).toUpperCase();element('account-name').textContent=auth.name;
   return !required;
@@ -199,3 +201,27 @@ element('sign-out').onclick=()=>{persist();void api.signOut();};
 void authView().then(ready=>{if(ready)return library();}).catch(e=>error(e.message)).finally(()=>document.body.classList.remove('booting'));
 setInterval(()=>void authView(),1000);
 setInterval(() => void sync(), 250);
+
+let codexBusy=false;
+async function codexView(action:'codex-status'|'codex-connect'|'codex-disconnect'='codex-status'){
+ if(codexBusy||!api.modelAccount)return;codexBusy=true;
+ const connect=element<HTMLButtonElement>('codex-connect');connect.disabled=true;
+ try{const state=await api.modelAccount(action);
+  element('codex-description').textContent=state.connected?`Connected as ${state.account?.email??'your account'}. Uses your ChatGPT plan.`:'Connect your own ChatGPT account to use agents. Your plan covers your requests.';
+  element('codex-status').textContent=state.error??(state.login?'Approve the sign-in in your browser.':'');
+  element('codex-code').textContent=state.login?.userCode??'';
+  const link=element<HTMLAnchorElement>('codex-link');link.hidden=!state.login;link.href=state.login?.verificationUrl==='https://auth.openai.com/codex/device'?state.login.verificationUrl:'https://auth.openai.com/codex/device';
+  connect.hidden=state.connected||!!state.login;element('codex-disconnect').hidden=!state.connected&&!state.login;
+ }catch{element('codex-status').textContent='Codex connection is unavailable. Try again shortly.';}
+ finally{codexBusy=false;connect.disabled=false;}
+}
+element('codex-account').onclick=()=>{element<HTMLDialogElement>('codex-dialog').showModal();void codexView();};
+element('codex-close').onclick=()=>element<HTMLDialogElement>('codex-dialog').close();
+element('codex-connect').onclick=()=>{void codexView('codex-connect');};
+element('codex-disconnect').onclick=()=>{void codexView('codex-disconnect');};
+setInterval(()=>{if(element<HTMLDialogElement>('codex-dialog').open)void codexView();},2000);
+
+element('paper').addEventListener('mousedown',event=>{
+ if(event.button!==0||!editor||!(event.target===element('paper')||event.target===element('editor')))return;
+ event.preventDefault();const point=editor.view.posAtCoords({left:event.clientX,top:event.clientY});editor.commands.focus(point?.pos??'end');
+});
