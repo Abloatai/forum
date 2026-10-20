@@ -7,6 +7,7 @@ import {extname,resolve} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {hostedService} from '../src/hosted/index.js';
+import {connectedCodex} from './fixtures/codex.js';
 import {openAuthority} from './fixtures/authority.js';
 import {markdownReply,checkMarkdown} from './fixtures/markdown.js';
 
@@ -30,13 +31,13 @@ const server=createServer(async(req,res)=>{
  }catch{res.writeHead(500).end();}
 });
 await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));origin=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
-handler=hostedService({browserOrigin:origin,verifyBrowser:async()=>({userId:'sample-user',organizationId:'sample-team',workspace:'sample-team',name:'Sample member'}),authority:()=>authority});
+handler=hostedService({codex:connectedCodex,browserOrigin:origin,verifyBrowser:async()=>({userId:'sample-user',organizationId:'sample-team',workspace:'sample-team',name:'Sample member'}),authority:()=>authority});
 const video=process.env.FORUM_AGENT_VIDEO_DIR;if(video)await mkdir(video,{recursive:true});const browser=await chromium.launch();
 try{
  const context=await browser.newContext({viewport:{width:1280,height:900},...(video?{recordVideo:{dir:video,size:{width:1280,height:900}}}:{})});
  await context.addCookies([{name:'better-auth.session_token',value:'sample-session',url:origin,httpOnly:true}]);
  await context.addInitScript(()=>document.addEventListener('DOMContentLoaded',()=>{const label=document.createElement('div');label.textContent='Local demo · simulated sign-in, model and storage';label.style.cssText='position:fixed;bottom:8px;left:8px;z-index:10000;font:11px system-ui;color:#666;background:white;padding:5px';document.body.append(label);}));
- const page=await context.newPage(),errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(origin+'/app/');await page.getByRole('button',{name:'Write without agents',exact:true}).click();await page.getByRole('button',{name:'New document',exact:true}).click();
+ const page=await context.newPage(),errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(origin+'/app/');await page.getByRole('button',{name:'New document',exact:true}).click();
  await page.locator('.tiptap').pressSequentially('We are writing together.');await page.waitForFunction(()=>document.getElementById('status')?.textContent==='Synced');
  const input=page.getByLabel('Message',{exact:true});await input.fill('/model ');await page.getByRole('option',{name:/Sample model/}).waitFor();if(video)await page.waitForTimeout(900);await input.press('Enter');
  await input.fill('Add a paragraph and keep our original text.');await page.getByRole('button',{name:'Send message',exact:true}).click();
