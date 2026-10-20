@@ -1,6 +1,7 @@
 import type {IncomingMessage,ServerResponse} from 'node:http';
 import {hostedService} from './index.js';
-const service=hostedService();
+import {waitUntil} from '@vercel/functions';
+const service=hostedService({waitUntil});
 export const config={maxDuration:300};
 export default async function handler(req:IncomingMessage&{body?:unknown},res:ServerResponse){
   try{

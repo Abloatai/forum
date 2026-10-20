@@ -31,7 +31,7 @@ The composer supports `/agent`, `/team`, `/model`, `@` participant references an
 
 Set `LOBBY_DOCS_AGENT_COMMAND` and `LOBBY_DOCS_AGENT_HOME` in `.env.local` to absolute paths for an installed Codex executable and a dedicated, provisioned profile. No profile or credentials are included. `/model` uses that executable’s model catalog. Agents can edit text, name documents and configure paper. Multiple agents can work on one document, with up to four runs per application instance. Stale edits must reread before retrying. **Stop agents** stops the document’s active runs and retains accepted edits.
 
-Tests use an explicitly labeled **Scripted test agent** over real MCP tools. Live model execution remains unverified. Rich-text undo/redo uses ProseMirror history and commits through Ablo; it is not Decks’ `useUndoScope` and does not survive app restarts.
+The hosted runner uses the same tools through the AI SDK, supporting direct Anthropic or a provider-neutral gateway. Offline tests use explicitly labeled scripted or mock models. The separate `test:agents:live` command requires a disposable Ablo test branch, server-side provider configuration and a private trace directory. Rich-text undo/redo uses ProseMirror history and commits through Ablo; it is not Decks’ `useUndoScope` and does not survive app restarts.
 
 ## Check and package
 

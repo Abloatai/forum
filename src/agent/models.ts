@@ -13,6 +13,7 @@ export function safeModels(value:unknown,allowed?:string[]):Model[]{
   });
 }
 export async function discoverModels(config:AgentConfig):Promise<Model[]>{
+  if('provider'in config)return config.models;
   // Scripted fixtures have no model provider and must not advertise invented models.
   if(config.scripted)return [];
   const child=spawn(config.command,['--ignore-user-config','-c','analytics.enabled=false','app-server'],{cwd:config.home,stdio:['pipe','pipe','pipe'],env:{PATH:process.env.PATH??'',CODEX_HOME:config.home,LANG:'en_US.UTF-8'}});

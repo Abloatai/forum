@@ -5,7 +5,7 @@ import type {AgentConfig} from '../../src/agent/cli.js';
 type Row={id:string;[key:string]:any};
 type Operation={action:string;model:string;id:string;data:Record<string,unknown>};
 const stores=new Map<string,Map<string,{row:Row;revision:number}>>();
-function clients(path:string):ReturnType<typeof actorClients>{
+export function clients(path:string):ReturnType<typeof actorClients>{
  const rows=stores.get(path)??new Map();stores.set(path,rows);
  return {
   async workspace(){return `synthetic:${path}`;},async close(){},async release(){},

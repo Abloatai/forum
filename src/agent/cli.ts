@@ -7,14 +7,16 @@ import {tmpdir} from 'node:os';
 import {join, isAbsolute} from 'node:path';
 import type {Model} from './models.js';
 import {documentTools} from './tools.js';
-export type AgentConfig = {command:string; home:string; model?:string; scripted?:boolean;models?:Model[];allowedModels?:string[]};
+import {runHostedAgent,type HostedAgentConfig} from './hosted.js';
+export type AgentConfig = {command:string; home:string; model?:string; scripted?:boolean;models?:Model[];allowedModels?:string[]}|HostedAgentConfig;
 export function agentConfiguration():AgentConfig|undefined {
   const command=process.env.LOBBY_DOCS_AGENT_COMMAND, home=process.env.LOBBY_DOCS_AGENT_HOME;
   if (!command || !home) return;
   if (!isAbsolute(command) || !isAbsolute(home)) throw new Error('Agent command and dedicated home must be absolute paths');
   return {command,home,allowedModels:process.env.LOBBY_DOCS_ALLOWED_MODELS?.split(',').map(value=>value.trim()).filter(Boolean),model:process.env.LOBBY_DOCS_AGENT_MODEL,scripted:process.env.LOBBY_DOCS_TEST_AGENT==='scripted'};
 }
-export async function runAgent(config:AgentConfig,prompt:string,tool:(name:string,args:Record<string,unknown>)=>unknown,signal:AbortSignal):Promise<string> {
+export async function runAgent(config:AgentConfig,prompt:string,tool:(name:string,args:Record<string,unknown>)=>unknown,signal:AbortSignal,check=async()=>{}):Promise<string> {
+  if('provider'in config)return runHostedAgent(config,prompt,tool,signal,check);
   const token=randomBytes(32).toString('hex'), expected=Buffer.from(`Bearer ${token}`);
   const cwd=mkdtempSync(join(tmpdir(),'lobby-docs-agent-'));
   let active=true;

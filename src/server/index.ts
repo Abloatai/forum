@@ -70,7 +70,7 @@ export function openAuthority(agent?:AgentConfig,clients=actorClients(),workspac
     return result;
   }
   const chat=createChat(clients,documentRequest,agent);
-  return {async request(input:Request,actor='local',name?:string){validateRequest(input);const client=clients.get(actor);return input.action.startsWith('chat-')?chat.request(input,client,actor,name):documentRequest(input,client);},release:clients.release,workspace:clients.workspace,async close(){await chat.close();await clients.close();}};
+  return {async request(input:Request,actor='local',name?:string,authorize?:()=>Promise<void>){validateRequest(input);const client=clients.get(actor);return input.action.startsWith('chat-')?chat.request(input,client,actor,name,authorize):documentRequest(input,client);},release:clients.release,workspace:clients.workspace,async close(){await chat.close();await clients.close();}};
 }
 export async function startServer(options:{token:string;host?:string;port?:number;agent?:AgentConfig|null;clients?:ReturnType<typeof actorClients>}){
   const agent=options.agent===undefined?agentConfiguration():options.agent??undefined;

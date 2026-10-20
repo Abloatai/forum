@@ -75,7 +75,7 @@ test('shared chat, authenticated MCP process, human concurrent edit, stop, persi
   await a.request({action:'chat-stop',id:documentID,clientID:'alice'});await waitFor(s=>s.run?.status==='stopped');
   a.close();b.close();await server.close();server=await startServer({database,token,agent:null});a=connectBridge(server.url,token);b=connectBridge(server.url,token);
   assert.ok((await state()).messages.some((m:any)=>m.kind==='assistant'));
-  await assert.rejects(a.request({action:'chat-send',id:documentID,clientID:'alice',messageID:randomUUID(),text:'No configured agent',agent:true}),/not configured/);
+  await assert.rejects(a.request({action:'chat-send',id:documentID,clientID:'alice',messageID:randomUUID(),text:'No configured agent',agent:true}),/agent_unavailable/);
  }finally{a.close();b.close();await server.close();await rm(dir,{recursive:true,force:true});}
 });
 test('two agent sessions and two humans share one document and transcript without overwriting additions',async()=>{

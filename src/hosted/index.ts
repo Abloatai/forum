@@ -1,10 +1,11 @@
 import {authAuthority,identityLease,browserSessionCookie,type Identity} from '../auth/index.js';
 import {openAuthority} from '../server/index.js';
 import type {Request as DocumentRequest} from '../document/index.js';
+import {hostedAgentConfiguration} from '../agent/index.js';
 
 type Authority=ReturnType<typeof openAuthority>;
 /** The only public data entry point. The issuer credential never leaves this service. */
-export function hostedService(options:{verify?:(token:string)=>Promise<Identity>;verifyBrowser?:(cookie:string)=>Promise<Identity>;browserOrigin?:string;authority?:(workspace:string)=>Authority}={}){
+export function hostedService(options:{verify?:(token:string)=>Promise<Identity>;verifyBrowser?:(cookie:string)=>Promise<Identity>;browserOrigin?:string;authority?:(workspace:string)=>Authority;waitUntil?:(work:Promise<void>)=>void}={}){
   const verify=identityLease(options.verify??authAuthority({url:'https://auth.abloatai.com'}));
   const verifyBrowser=identityLease(options.verifyBrowser??authAuthority({url:'https://auth.abloatai.com'},fetch,'cookie'));
   const browserOrigin=options.browserOrigin??'https://forum.abloatai.com';
@@ -34,17 +35,18 @@ export function hostedService(options:{verify?:(token:string)=>Promise<Identity>
       let authority=workspaces.get(identity.organizationId);
       if(!authority){
         if(workspaces.size>=128)throw new Error('service_busy');
-        authority=(options.authority??(workspace=>openAuthority(undefined,undefined,workspace)))(identity.organizationId);
+        authority=(options.authority??(workspace=>openAuthority(hostedAgentConfiguration(options.waitUntil),undefined,workspace)))(identity.organizationId);
         workspaces.set(identity.organizationId,authority);
       }
       if(input?.action==='session')return json({identity,workspace:await authority.workspace()});
-      return json({result:await authority.request(input as DocumentRequest,identity.userId,identity.name)});
+      const authorize=async()=>{const current=browser?await verifyBrowser(cookie):await verify(authorization!.slice(7));if(current.userId!==identity.userId||current.organizationId!==identity.organizationId)throw new Error('auth_required');};
+      return json({result:await authority.request(input as DocumentRequest,identity.userId,identity.name,authorize)});
     }catch(error){
       const code=(error as Error).message;
       if(code==='auth_required')return json({error:code},401);
       if(['auth_unavailable','service_busy'].includes(code))return json({error:code},503);
       // Never expose upstream responses, credential values or server stacks.
-      const safe=['document_not_found','invalid_request','invalid_title','invalid_version','invalid_steps','invalid_step','operation_id_reused','message_id_reused','invalid_message','document_too_large','stopped'];
+      const safe=['document_not_found','invalid_request','invalid_title','invalid_version','invalid_steps','invalid_step','operation_id_reused','message_id_reused','invalid_message','document_too_large','stopped','agent_unavailable','model_not_allowed','model_catalog_unavailable'];
       return json({error:safe.includes(code)?code:'request_failed'},400);
     }finally{pending--;}
   };
