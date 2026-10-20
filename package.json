@@ -1,0 +1,75 @@
+{
+  "name": "forum",
+  "version": "0.1.4",
+  "private": true,
+  "description": "Multiplayer documents with Ablo and Tiptap",
+  "author": "Ablo",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/main/index.cjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "npm run build && node --env-file-if-exists=.env.local node_modules/electron/cli.js .",
+    "server": "tsx src/server/cli.ts",
+    "check": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "test:electron": "npm run build && node --env-file-if-exists=.env.local tests/electron.mjs",
+    "package": "npm run build && electron-forge package",
+    "make": "npm run build && electron-forge make",
+    "test:integration": "node --env-file-if-exists=.env.local --import tsx --test tests/*.test.ts",
+    "test:auth": "npm run build && node --import tsx tests/native-auth.mts",
+    "test:site": "node tests/site.mjs",
+    "test:browser": "npm run build && node --import tsx tests/browser.mts",
+    "test:desktop": "npm run build && node --import tsx tests/desktop.mts",
+    "test:agents:live": "node --import tsx tests/hosted-agents-live.mts",
+    "test:agents:browser": "npm run build && node --import tsx tests/hosted-agent-browser.mts"
+  },
+  "devDependencies": {
+    "@abloatai/ablo": "0.66.16",
+    "@ai-sdk/anthropic": "3.0.133",
+    "@better-auth/electron": "1.6.23",
+    "@electron-forge/cli": "8.0.0-alpha.9",
+    "@electron-forge/maker-zip": "8.0.0-alpha.9",
+    "@tiptap/core": "3.31.3",
+    "@tiptap/extension-placeholder": "3.31.3",
+    "@tiptap/pm": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@types/ws": "8.18.1",
+    "@vercel/functions": "3.10.1",
+    "ai": "6.0.311",
+    "better-auth": "1.6.23",
+    "electron": "41.10.7",
+    "esbuild": "0.28.2",
+    "playwright": "1.62.1",
+    "prosemirror-collab": "1.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "streamdown": "2.6.0",
+    "tsx": "4.23.13",
+    "typescript": "6.0.2",
+    "ws": "8.22.0",
+    "zod": "4.4.3"
+  },
+  "config": {
+    "forge": "./forge.config.cjs"
+  },
+  "overrides": {
+    "@better-auth/core": "1.6.23",
+    "vitest": "4.1.11",
+    "vite": "6.4.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Abloatai/forum.git"
+  },
+  "homepage": "https://forum.abloatai.com",
+  "bugs": {
+    "url": "https://github.com/Abloatai/forum/issues"
+  }
+}

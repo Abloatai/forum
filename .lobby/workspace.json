@@ -1,0 +1,1 @@
+{"version":3,"setup":[{"command":"npm","args":["ci"]},{"command":"node","args":["node_modules/electron/install.js"]},{"command":"node","args":["node_modules/esbuild/install.js"]}],"services":{}}

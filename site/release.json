@@ -1,0 +1,10 @@
+{
+  "product": "forum",
+  "platform": "darwin",
+  "arch": "arm64",
+  "version": "0.1.4",
+  "url": "https://d2bnmgwuxhgpmh.cloudfront.net/forum/preview/0.1.4/Forum-darwin-arm64-0.1.4.zip",
+  "sizeBytes": 112284764,
+  "checksum": "sha256:15eb4202316e4d1e7da73219150dda930f5308f0713b7de68eb81f24d090bf31",
+  "notarized": true
+}
