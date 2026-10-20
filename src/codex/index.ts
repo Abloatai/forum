@@ -22,7 +22,7 @@ export function personalCodex(store:Store,open=openAccount,waitUntil?:(work:Prom
    try{
     const login=await account.request<{verificationUrl:string;userCode:string}>('account/login/start',{type:'chatgptDeviceCode'});
     if(login.verificationUrl!=='https://auth.openai.com/codex/device'||!/^[A-Z0-9-]{4,32}$/i.test(login.userCode))throw new Error('codex_unavailable');
-    leased=await store.write(user,{generation,leaseUntil:expiresAt,login:{...login,expiresAt}},leased);
+    leased=await store.write(user,{generation,leaseUntil:expiresAt,login:{verificationUrl:login.verificationUrl,userCode:login.userCode,expiresAt}},leased);
     const finish=async()=>{let timer:NodeJS.Timeout|undefined;try{
      const success=await Promise.race([account.completed,new Promise<boolean>(resolve=>{timer=setTimeout(()=>resolve(false),Math.max(0,expiresAt-Date.now()));})]);if(!success)throw new Error('codex_unavailable');
      const result=await account.read(),current=await store.read(user);if(current.value.generation!==generation)return;
