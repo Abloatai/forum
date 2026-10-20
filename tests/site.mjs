@@ -14,11 +14,17 @@ try{
  const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.goto(origin);await page.getByRole('heading',{name:'Multiplayer documents'}).waitFor();
  await page.waitForFunction(()=>document.getElementById('release-status').textContent!=='Checking the latest preview…');
+ async function actionsSideBySide(page){
+  const open=await page.locator('.hero-actions .button').first().boundingBox(),download=await page.locator('#download-link').boundingBox();
+  assert.ok(open&&download&&Math.abs(open.y-download.y)<1&&download.x>=open.x+open.width,'Open and Download must sit next to each other.');
+ }
+ await actionsSideBySide(page);
  assert.equal(await page.locator('.crew').evaluate(image=>image.complete&&image.naturalWidth>0),true);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  if(video){await page.screenshot({path:resolve(video,'desktop.png'),fullPage:true});await page.waitForTimeout(1200);await page.getByRole('navigation',{name:'Forum footer'}).scrollIntoViewIfNeeded();await page.waitForTimeout(1200);}
  await context.close();
- const checks=await browser.newContext();const mobile=await checks.newPage();await mobile.setViewportSize({width:375,height:812});await mobile.goto(origin);assert.equal(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);if(video)await mobile.screenshot({path:resolve(video,'mobile.png'),fullPage:true});
+ const checks=await browser.newContext();const mobile=await checks.newPage();await mobile.setViewportSize({width:375,height:812});await mobile.goto(origin);await actionsSideBySide(mobile);assert.equal(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);if(video)await mobile.screenshot({path:resolve(video,'mobile.png'),fullPage:true});
+ await mobile.setViewportSize({width:320,height:740});await actionsSideBySide(mobile);
  const preview=await checks.newPage();
  const manifest={product:'forum',platform:'darwin',arch:'arm64',version:'0.1.0',url:'https://downloads.example.test/Forum.zip',sizeBytes:120000000,checksum:'sha256:'+'a'.repeat(64),notarized:true};
  await preview.route('**/release.json',route=>route.fulfill({json:manifest}));await preview.goto(origin);await preview.getByRole('link',{name:'Download Forum',exact:true}).waitFor();

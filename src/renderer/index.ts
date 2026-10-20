@@ -196,6 +196,6 @@ element('change-email').onclick=()=>{emailSent=false;void authView();};
 element('sign-in-button').onclick=()=>{void api.authState().then(auth=>auth.pending?api.signOut():api.signIn()).then(authView);};
 element('account').onclick=()=>{const menu=element('account-menu');menu.hidden=!menu.hidden;element('account').setAttribute('aria-expanded',String(!menu.hidden));};
 element('sign-out').onclick=()=>{persist();void api.signOut();};
-void authView().then(ready=>{if(ready)return library();}).catch(e=>error(e.message));
+void authView().then(ready=>{if(ready)return library();}).catch(e=>error(e.message)).finally(()=>document.body.classList.remove('booting'));
 setInterval(()=>void authView(),1000);
 setInterval(() => void sync(), 250);

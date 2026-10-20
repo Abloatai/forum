@@ -39,7 +39,30 @@ try{
   });
   await context.addCookies([{name:'better-auth.session_token',value:'sample-session',url:origin,httpOnly:true}]);
   const page=await context.newPage(),errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(origin+'/app/');await page.getByRole('button',{name:'New document',exact:true}).click();
+  let releaseSession!:()=>void,releaseList!:()=>void,sessionReached!:()=>void,listReached!:()=>void;
+  const sessionGate=new Promise<void>(done=>releaseSession=done),listGate=new Promise<void>(done=>releaseList=done);
+  const sessionStarted=new Promise<void>(done=>sessionReached=done),listStarted=new Promise<void>(done=>listReached=done);
+  let firstSession=true,firstList=true;
+  await page.route('**/api/rpc',async route=>{
+    const action=route.request().postDataJSON().action;
+    if(action==='session'&&firstSession){firstSession=false;sessionReached();await sessionGate;}
+    if(action==='list'&&firstList){firstList=false;listReached();await listGate;}
+    await route.continue();
+  });
+  await page.goto(origin+'/app/');await sessionStarted;
+  assert.equal(await page.getByRole('status').filter({hasText:'Opening Forum'}).isVisible(),true);
+  assert.equal(await page.locator('.workspace').isVisible(),false);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await page.locator('.bootstrap-spinner').evaluate(node=>getComputedStyle(node).animationName),'none');
+  releaseSession();await listStarted;
+  assert.equal(await page.locator('#bootstrap').isVisible(),true,'Wait for the document list after authentication.');
+  releaseList();await page.getByRole('button',{name:'New document',exact:true}).click();
+  assert.equal(await page.locator('#bootstrap').isVisible(),false);
+  const failed=await context.newPage();
+  await failed.route('**/api/rpc',route=>route.request().postDataJSON().action==='list'?route.fulfill({status:503,json:{error:'Sample document list unavailable'}}):route.continue());
+  await failed.goto(origin+'/app/');await failed.getByText('Sample document list unavailable',{exact:true}).waitFor();
+  assert.equal(await failed.locator('#bootstrap').isVisible(),false,'A failed bootstrap must reveal the error, not leave a spinner.');
+  await failed.close();
   await page.locator('.tiptap').pressSequentially('A shared browser document.');
   await page.waitForFunction(()=>document.getElementById('status')?.textContent==='Synced');
   assert.equal(await page.getByRole('button',{name:'Sign in',exact:true}).isVisible(),false);
@@ -71,5 +94,5 @@ try{
   const signedOut=await anonymous.newPage();await signedOut.goto(origin+'/app/');
   const popup=signedOut.waitForEvent('popup');await signedOut.getByRole('button',{name:'Sign in',exact:true}).click();const login=await popup;await login.waitForURL('https://www.abloatai.com/signin?next=%2Fapp');
   assert.equal(login.url().includes('/cli'),false);await anonymous.close();
-  console.log('PASS: browser cookie SSO, editor, two independent OT clients, shared chat, closed-tab pending recovery, shared issuer sign-out, fresh sign-in/re-entry, revocation, and normal shared sign-in (simulated issuer and storage; sign-in page intercepted).');
+  console.log('PASS: delayed session/list loading, reduced motion, bootstrap failure, browser cookie SSO, editor, two independent OT clients, shared chat, closed-tab pending recovery, shared issuer sign-out, fresh sign-in/re-entry, revocation, and normal shared sign-in (simulated issuer and storage; sign-in page intercepted).');
 }finally{await browser.close();await new Promise<void>(done=>server.close(()=>done()));}

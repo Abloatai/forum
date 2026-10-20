@@ -163,3 +163,10 @@ body[data-layout=flow] #paper { margin: 8px auto 40px; }
 .message-markdown [data-streamdown="table-wrapper"] { max-width: 100%; overflow-x: auto; }
 .message-markdown table { border-collapse: collapse; font-size: 12px; }
 .message-markdown th, .message-markdown td { padding: 5px 8px; border: 1px solid var(--border); text-align: left; }
+
+.booting > :not(#bootstrap) { visibility: hidden; }
+#bootstrap { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--background); color: var(--muted-foreground); font-size: 13px; }
+body:not(.booting) #bootstrap { display: none; }
+.bootstrap-spinner { width: 16px; height: 16px; border: 1.5px solid var(--border); border-top-color: var(--foreground); border-radius: 50%; animation: bootstrap-spin .8s linear infinite; }
+@keyframes bootstrap-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .bootstrap-spinner { animation: none; } }
