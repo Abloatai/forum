@@ -56,10 +56,10 @@ input { width: 100%; min-width: 0; background: transparent; border: 0; border-ra
 .message.user { position: relative; margin-left: 28px; background: var(--muted); border-radius: 12px; padding: 8px 28px 8px 12px; font-size: 12px; line-height: 18px; }
 .message-avatar { position: absolute; right: -4px; bottom: -8px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 2px var(--background); color: var(--muted-foreground); font-size: 10px; font-weight: 500; line-height: 1; }
 .tool-activity { margin: 0 8px 16px; color: var(--muted-foreground); font-size: 11px; line-height: 18px; }
-.tool-activity summary { cursor: pointer; padding: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
-.tool-activity summary::-webkit-details-marker { display: none; }
-.tool-activity summary::before { content: ""; width: 5px; height: 5px; flex-shrink: 0; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
-.tool-activity[open] summary::before { transform: rotate(45deg); }
+.tool-activity summary,#new-workspace summary { cursor: pointer; padding: 6px 0; list-style: none; display: flex; align-items: center; gap: 8px; }
+.tool-activity summary::-webkit-details-marker,#new-workspace summary::-webkit-details-marker { display: none; }
+.tool-activity summary::before,#new-workspace summary::before { content: ""; width: 5px; height: 5px; flex-shrink: 0; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
+.tool-activity[open] summary::before,#new-workspace[open] summary::before { transform: rotate(45deg); }
 .tool-activity > div { padding: 3px 0 3px 14px; }
 .message.system { color: var(--muted-foreground); font-size: 12px; }
 .composer-area { padding: 12px 16px 8px; }
@@ -131,7 +131,7 @@ h2 { font-size: 12px; font-weight: 500; margin: 0; max-width: 300px; white-space
 #empty-library { color: var(--muted-foreground); font-size: 13px; }
 body[data-layout=flow] #paper { margin: 8px auto 40px; }
 .document-layout-control { position: relative; display: inline-flex; align-items: center; color: var(--muted-foreground); margin-right: 4px; }
-.document-layout-control > svg { position: absolute; right: 10px; pointer-events: none; }
+.document-layout-control > svg,.workspace-select-control > svg { position: absolute; right: 10px; pointer-events: none; }
 #document-layout { appearance: none; background: transparent; border: 0; border-radius: 4px; color: inherit; padding: 5px 32px 5px 10px; font-size: 12px; cursor: pointer; }
 
 .signed-out .workspace,.signed-out #toggle-sidebar{display:none}#sign-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}#sign-in[hidden]{display:none}#sign-in h1{font-size:48px;letter-spacing:-.045em;font-weight:450;margin:0}#sign-in-button{background:var(--foreground);color:var(--background);padding:12px 20px;border-radius:8px;font-size:14px}#sign-in-status{font-size:13px;color:var(--muted-foreground);min-height:20px}.account{margin-left:auto;position:relative}#account{width:30px;height:30px;border-radius:50%;background:var(--muted);font-size:13px}#account-menu{position:absolute;right:0;top:38px;min-width:180px;background:var(--background);box-shadow:0 4px 24px #0002;border:1px solid var(--border);border-radius:8px;padding:8px;z-index:50}#account-name{display:block;padding:8px;font-size:12px;color:var(--muted-foreground)}#sign-out{width:100%;padding:8px;text-align:left;font-size:13px}
@@ -192,6 +192,9 @@ main:has(.tiptap:focus) #writing-focus {visibility:visible;}
 #members-close {float:right;font-size:22px;}
 #members-dialog form {display:flex;align-items:center;gap:12px;margin:16px 0;}
 #members-dialog input,#workspace-select {flex:1;min-width:0;padding:10px;border:0;border-radius:6px;background:var(--muted);color:var(--foreground);font:inherit;}
+#workspace-select {appearance:none;width:100%;padding-right:36px;cursor:pointer;}
+.workspace-select-control {position:relative;display:flex;flex:1;min-width:0;}
+.workspace-select-control > svg {right:14px;top:50%;transform:translateY(-50%);color:var(--muted-foreground);}
 #members-dialog button {padding:7px 10px;}
 .member-row,.invitation-row {display:flex;align-items:center;gap:12px;padding:12px 0;font-size:13px;}
 .member-row {flex-wrap:wrap;}
