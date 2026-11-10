@@ -5,6 +5,7 @@ out/
 *.webm
 *.mp4
 .env*
+!.envrc
 .lobby/tools/
 auth-session.bin*
 .terraform/
@@ -12,3 +13,4 @@ auth-session.bin*
 *.tfvars
 *.tfvars.json
 crash.log
+.direnv/
