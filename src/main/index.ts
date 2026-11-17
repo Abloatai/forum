@@ -138,7 +138,7 @@ if (locked) void app.whenReady().then(async () => {
     state.draft = draft;
     return draft;
   });
-  ipcMain.handle('docs:share-document',(event,id:unknown)=>{const state=sender(event);if(local)throw new Error('Share hosted documents');identifier(id);if(state.draft?.id!==id)throw new Error('Invalid document');clipboard.writeText(site+'/app/?document='+encodeURIComponent(id));});
+  ipcMain.handle('docs:share-document',(event,id:unknown)=>{const state=sender(event);if(local)throw new Error('Share hosted documents');identifier(id);if(state.draft?.id!==id)throw new Error('Invalid document');return clipboard.writeText(site+'/app/?document='+encodeURIComponent(id));});
   ipcMain.handle('docs:team',async(event,input:Request)=>{const state=sender(event);if(!input||!['team-state','team-create','team-accept','team-switch','team-invite','team-cancel'].includes(input.action))throw new Error('Invalid team request');const result=await state.bridge.request(input);if(['team-create','team-accept','team-switch'].includes(input.action)&&signedIn){const response=await workspaceClient(site,()=>signedIn?.token,()=>resetIdentity())({action:'session'});resetIdentity({token:signedIn.token,identity:response.identity});}return result;});
   ipcMain.handle('docs:model-account',async(event,action:unknown)=>{const state=sender(event);if(!['codex-status','codex-connect','codex-disconnect'].includes(String(action)))throw new Error('Invalid account request');const response=await state.bridge.request({action:String(action)});return response;});
   ipcMain.handle('docs:request', async (event, input: Request) => {
