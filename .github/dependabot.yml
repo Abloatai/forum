@@ -1,0 +1,42 @@
+# Dependabot: grouped security updates, grouped monthly version updates for
+# everything this repo ships.
+#
+# - Security updates open as soon as an alert appears, whatever the schedule.
+#   They are grouped so one advisory wave is one PR. The repository setting
+#   "Dependabot security updates" turns them on; this file only shapes them.
+# - Version updates run monthly for what ships: the root npm package (the
+#   Forum desktop app, server and site) and the Nix flake inputs. Minor and
+#   patch updates collapse into one PR; majors stay individual.
+# - `cooldown` waits a week after a release before proposing it, so a
+#   compromised or yanked version has time to be caught upstream. Security
+#   updates ignore it.
+#
+# Reference:
+# https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-minor-and-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: nix
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      nix-flake-inputs:
+        applies-to: version-updates
+        patterns: ["*"]
