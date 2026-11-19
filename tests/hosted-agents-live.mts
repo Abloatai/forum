@@ -21,7 +21,7 @@ let notifyProvider:(()=>void)|undefined;
 const readers=new Set<string>();let notifyReaders!:()=>void,releaseReaders!:()=>void;
 const readersReady=new Promise<void>(resolve=>notifyReaders=resolve),readersReleased=new Promise<void>(resolve=>releaseReaders=resolve);
 function results(prompt:any[]){return prompt.flatMap(message=>message.role==='tool'?message.content:[]).filter(part=>part.type==='tool-result');}
-const work:Promise<void>[]=[],makeConfig=(model:string):HostedAgentConfig=>({...base,model,waitUntil:p=>work.push(p),provider:id=>{const model=base.provider(id);if(typeof model==='string'||model.specificationVersion!=='v3')throw Error('Live trace requires a V3 provider.');return wrapLanguageModel({model,middleware:{specificationVersion:'v3',wrapGenerate:async({params,doGenerate})=>{
+const work:Promise<void>[]=[],makeConfig=(model:string):HostedAgentConfig=>({...base,model,waitUntil:p=>work.push(p),provider:id=>{const model=base.provider(id);if(typeof model==='string'||model.specificationVersion!=='v4')throw Error('Live trace requires a V4 provider.');return wrapLanguageModel({model,middleware:{specificationVersion:'v4',wrapGenerate:async({params,doGenerate})=>{
  if(!readers.has(id)&&results(params.prompt).some(part=>part.toolName==='read_document'&&part.output.type==='json')){
   readers.add(id);events.push({event:'schedule.pause-after-read',model:id});if(readers.size===2)notifyReaders();
   await readersReleased;
